@@ -28,7 +28,7 @@ int server()
 
     // Wait for and accept one client
     struct sockaddr_in client_structure;
-    socklen_t size_of_client_structure;
+    socklen_t size_of_client_structure = sizeof(client_structure);
     int client_socket = accept(server_socket, (sockaddr*)&client_structure, &size_of_client_structure);
     if (client_socket == -1){
         perror("Accept error");
