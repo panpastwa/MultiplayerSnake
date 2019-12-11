@@ -3,6 +3,7 @@
 #include "client.h"
 
 int main(){
-    client();
+    server();
+//    client();
     return 0;
 }
