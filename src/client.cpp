@@ -24,7 +24,7 @@ int client()
     }
 
     int M=30, N=20;
-    int size_of_cell = 16;
+    int size_of_cell = 32;
     int width = M*size_of_cell;
     int height = N*size_of_cell;
 
@@ -39,8 +39,17 @@ int client()
     board[12][6] = 2;
     board[13][6] = 2;
 
+    board[6][18] = 3;
+    board[6][19] = 3;
+
+    board[19][0] = 4;
+    board[19][1] = 4;
+
     sf::RenderWindow window(sf::VideoMode(width, height), "Snake");
-    sf::RectangleShape cell(sf::Vector2f(16.0f, 16.0f));
+    sf::RectangleShape cell(sf::Vector2f(size_of_cell, size_of_cell));
+    cell.setOutlineThickness(1.0f);
+    cell.setOutlineColor(sf::Color::Black);
+
 
     while (window.isOpen())
     {
@@ -74,21 +83,38 @@ int client()
         window.clear();
         for (int i=0; i<N; ++i)
             for (int j=0; j<M; ++j){
-                if (board[i][j] == 0){
+                if (board[i][j] == 0) {
+                    cell.setFillColor(sf::Color::White);
+                    cell.setPosition(size_of_cell*j, size_of_cell*i);
+                    window.draw(cell);
+                }
+                else if (board[i][j] == 1) {
                     cell.setFillColor(sf::Color::Magenta);
                     cell.setPosition(size_of_cell*j, size_of_cell*i);
                     window.draw(cell);
                 }
-                else if (board[i][j] == 1){
+
+                else if (board[i][j] == 2) {
+                    cell.setFillColor(sf::Color::Blue);
+                    cell.setPosition(size_of_cell*j, size_of_cell*i);
+                    window.draw(cell);
+                }
+
+                else if (board[i][j] == 3) {
+                    cell.setFillColor(sf::Color::Green);
+                    cell.setPosition(size_of_cell*j, size_of_cell*i);
+                    window.draw(cell);
+                }
+
+                else if (board[i][j] == 4) {
                     cell.setFillColor(sf::Color::Yellow);
                     cell.setPosition(size_of_cell*j, size_of_cell*i);
                     window.draw(cell);
                 }
 
-                else if (board[i][j] == 2){
-                    cell.setFillColor(sf::Color::Blue);
-                    cell.setPosition(size_of_cell*j, size_of_cell*i);
-                    window.draw(cell);
+                else {
+                    printf("Unknown board matrix value");
+                    return -1;
                 }
 
             }
