@@ -3,5 +3,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <thread>
 
 int server();
+void client_service(int sock);
+int client_menu_service(int sock);
+void client_game_service(int sock);

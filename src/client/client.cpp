@@ -7,7 +7,7 @@ int client()
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == -1){
         perror("Socket error");
-        return -1;
+        exit(-1);
     }
 
     // Create structure with server's port number and ip address
@@ -20,7 +20,7 @@ int client()
     int error = connect(sock, (sockaddr*) &ip_address, sizeof(ip_address));
     if (error == -1){
         perror("Connect error");
-        return -1;
+        exit(-1);
     }
 
     int M=30, N=20;
@@ -66,16 +66,16 @@ int client()
             // Check if key is pressed and send info to server
             if (event.type == sf::Event::KeyPressed) {
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
-                    send_key_to_server(sf::Keyboard::Key::Up);
+                    send_key_to_server(sf::Keyboard::Key::Up, sock);
                 }
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
-                    send_key_to_server(sf::Keyboard::Key::Down);
+                    send_key_to_server(sf::Keyboard::Key::Down, sock);
                 }
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
-                    send_key_to_server(sf::Keyboard::Key::Right);
+                    send_key_to_server(sf::Keyboard::Key::Right, sock);
                 }
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
-                    send_key_to_server(sf::Keyboard::Key::Left);
+                    send_key_to_server(sf::Keyboard::Key::Left, sock);
                 }
             }
         }
@@ -114,7 +114,7 @@ int client()
 
                 else {
                     printf("Unknown board matrix value");
-                    return -1;
+                    exit(-1);
                 }
 
             }
@@ -141,8 +141,19 @@ int client()
     return 0;
 }
 
-void send_key_to_server(sf::Keyboard::Key key){
-    printf("Key %d pressed\n", key);
+void send_key_to_server(sf::Keyboard::Key key, int server_sock){
+    printf("Key %d pressed\n", key-71);
+    char msg[1024] = "KEY:";
+
+    // adding '0' for clean printf
+    msg[4] = key-71 + '0';
+    msg[5] = '\n';
+    msg[6] = '\0';
+    int num_of_bytes = write(server_sock, msg, sizeof(msg));
     // todo
-    // send key to server
+    // check if server is connected and handle this error
+    if (num_of_bytes == -1){
+        perror("Send key to server error");
+        exit(-1);
+    }
 }

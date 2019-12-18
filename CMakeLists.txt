@@ -18,5 +18,12 @@ if(SFML_FOUND)
     message(STATUS "SFML_VERSION: ${SFML_VERSION}")
 endif()
 
-add_executable(MultiplayerSnake src/client.cpp src/server.cpp src/main.cpp src/server.h src/client.h)
-target_link_libraries (MultiplayerSnake sfml-graphics sfml-window sfml-system)
+#add_executable(MultiplayerSnake src/client/client.cpp src/server/server.cpp src/main.cpp src/server/server.h src/client/client.h)
+#target_link_libraries(MultiplayerSnake sfml-graphics sfml-window sfml-system pthread)
+#target_link_libraries(MultiplayerSnake pthread)
+
+add_executable(ServerApp src/server/main.cpp src/server/server.cpp src/server/server.h)
+target_link_libraries(ServerApp sfml-graphics sfml-window sfml-system pthread)
+
+add_executable(ClientApp src/client/main.cpp src/client/client.cpp src/client/client.h)
+target_link_libraries(ClientApp sfml-graphics sfml-window sfml-system pthread)
