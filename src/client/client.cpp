@@ -1,5 +1,8 @@
 #include "client.h"
 
+// Size of board
+const int M = 30, N = 20;
+int size_of_cell = 32;
 
 int client()
 {
@@ -23,16 +26,121 @@ int client()
         exit(-1);
     }
 
-    int M=30, N=20;
-    int size_of_cell = 32;
     int width = M*size_of_cell;
     int height = N*size_of_cell;
+    sf::RenderWindow window(sf::VideoMode(width, height), "Snake");
 
+    menu(window, sock);
+    queue(window, sock);
+    game(window, sock);
+    score(window, sock);
+
+    return 0;
+}
+
+void menu(sf::RenderWindow &window, int sock){
+
+    // Create and load font
+    sf::Font font;
+    font.loadFromFile("data/UbuntuMono-RI.ttf");
+
+    // Create START GAME text
+    sf::Text start_text("Join game", font);
+    start_text.setCharacterSize(50);
+    start_text.setFillColor(sf::Color::Black);
+    start_text.setPosition(340.0f, 200.0f);
+    start_text.setStyle(sf::Text::Bold);
+
+    // Create EXIT text
+    sf::Text exit_text("Exit", font);
+    exit_text.setCharacterSize(50);
+    exit_text.setFillColor(sf::Color::Black);
+    exit_text.setPosition(360.0f, 350.0f);
+
+    // Create variable holding information about highlighted state in menu
+    // 0 - start game
+    // 1 - exit
+    int menu_option = 0;
+
+    // Main menu loop
+    while (window.isOpen()){
+
+        sf::Event event;
+        while (window.pollEvent(event)) {
+
+            // Close window and close connection
+            if (event.type == sf::Event::Closed) {
+                window.close();
+                int error = shutdown(sock, SHUT_RDWR);
+                if (error == -1){
+                    perror("Shutdown error");
+                    exit(-1);
+                }
+                exit(0);
+            }
+
+            // Any key pressed
+            if (event.type == sf::Event::KeyPressed) {
+
+                // Navigation in menu using arrow key up
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
+                    menu_option = 0;
+                    start_text.setStyle(sf::Text::Bold);
+                    exit_text.setStyle(sf::Text::Regular);
+                }
+
+                // Navigation in menu using arrow key down
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
+                    menu_option = 1;
+                    start_text.setStyle(sf::Text::Regular);
+                    exit_text.setStyle(sf::Text::Bold);
+                }
+
+                // User chooses current option
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Enter)){
+
+                    // Current option - START GAME
+                    if (menu_option == 0){
+                        return;
+                    }
+
+                    // Current option - EXIT
+                    else {
+                        window.close();
+                        int error = shutdown(sock, SHUT_RDWR);
+                        if (error == -1){
+                            perror("Shutdown error");
+                            exit(-1);
+                        }
+                        exit(0);
+                    }
+                }
+            }
+        }
+
+        // Drawing
+        window.clear(sf::Color::White);
+        window.draw(start_text);
+        window.draw(exit_text);
+        window.display();
+    }
+}
+
+void queue(sf::RenderWindow &window, int sock){
+    // todo
+    // implement
+    ;
+}
+
+void game(sf::RenderWindow &window, int sock){
+
+    // Create empty board
     char board[N][M];
     for (int i=0; i<N; ++i)
         for (int j=0; j<M; ++j)
             board[i][j] = 0;
 
+    // Exemplary data in board
     board[2][3] = 1;
     board[2][4] = 1;
 
@@ -45,15 +153,12 @@ int client()
     board[19][0] = 4;
     board[19][1] = 4;
 
-    sf::RenderWindow window(sf::VideoMode(width, height), "Snake");
-
-    menu(window, sock);
-
+    // Set properties of cell
     sf::RectangleShape cell(sf::Vector2f(size_of_cell, size_of_cell));
     cell.setOutlineThickness(1.0f);
     cell.setOutlineColor(sf::Color::Black);
 
-
+    // Main game loop
     while (window.isOpen())
     {
         sf::Event event;
@@ -62,8 +167,12 @@ int client()
             // Close window and close connection
             if (event.type == sf::Event::Closed){
                 window.close();
-                // todo
-                // close connection
+                int error = shutdown(sock, SHUT_RDWR);
+                if (error == -1){
+                    perror("Shutdown error");
+                    exit(-1);
+                }
+                exit(0);
             }
 
             // Check if key is pressed and send info to server
@@ -83,6 +192,7 @@ int client()
             }
         }
 
+        // Drawing
         window.clear();
         for (int i=0; i<N; ++i)
             for (int j=0; j<M; ++j){
@@ -123,25 +233,12 @@ int client()
             }
         window.display();
     }
+}
 
-    return 0;
-
-
-    char text[1024];
-
-    // reading from socket
-    int status = read(sock, text, 1024);
-
-    if (status == -1){
-        perror("Error while reading from socket");
-        exit(1);
-    }
-
-    if (status > 0){
-        write(1, text, status);
-    }
-
-    return 0;
+void score(sf::RenderWindow &window, int sock){
+    // todo
+    // implement
+    ;
 }
 
 void send_key_to_server(sf::Keyboard::Key key, int server_sock){
@@ -158,86 +255,5 @@ void send_key_to_server(sf::Keyboard::Key key, int server_sock){
     if (num_of_bytes == -1){
         perror("Send key to server error");
         exit(-1);
-    }
-}
-
-void menu(sf::RenderWindow &window, int server_sock){
-
-    // Create and load font
-    sf::Font font;
-    font.loadFromFile("data/UbuntuMono-RI.ttf");
-
-    // Create START GAME text
-    sf::Text start_text("Join game", font);
-    start_text.setCharacterSize(50);
-    start_text.setFillColor(sf::Color::Black);
-    start_text.setPosition(340.0f, 200.0f);
-    start_text.setStyle(sf::Text::Bold);
-
-    // Create EXIT text
-    sf::Text exit_text("Exit", font);
-    exit_text.setCharacterSize(50);
-    exit_text.setFillColor(sf::Color::Black);
-    exit_text.setPosition(360.0f, 350.0f);
-
-    // Create variable holding information about highlighted state in menu
-    // 0 - start game
-    // 1 - exit
-    int menu_option = 0;
-
-    // Main menu loop
-    while (window.isOpen()){
-
-        sf::Event event;
-        while (window.pollEvent(event)) {
-
-            // Close window and close connection
-            if (event.type == sf::Event::Closed) {
-                window.close();
-                shutdown(server_sock, SHUT_RDWR);
-            }
-
-            // Any key pressed
-            if (event.type == sf::Event::KeyPressed) {
-
-                // Navigation in menu using arrow key up
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
-                    menu_option = 0;
-                    start_text.setStyle(sf::Text::Bold);
-                    exit_text.setStyle(sf::Text::Regular);
-                }
-
-                // Navigation in menu using arrow key down
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
-                    menu_option = 1;
-                    start_text.setStyle(sf::Text::Regular);
-                    exit_text.setStyle(sf::Text::Bold);
-                }
-
-                // User chooses current option
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Enter)){
-
-                    // Current option - START GAME
-                    if (menu_option == 0){
-                        // todo
-                        // start game
-                        return;
-                    }
-
-                    // Current option - EXIT
-                    else {
-                        window.close();
-                        shutdown(server_sock, SHUT_RDWR);
-                        exit(0);
-                    }
-                }
-            }
-        }
-
-        // Drawing
-        window.clear(sf::Color::White);
-        window.draw(start_text);
-        window.draw(exit_text);
-        window.display();
     }
 }
