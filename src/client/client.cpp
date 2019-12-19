@@ -46,6 +46,9 @@ int client()
     board[19][1] = 4;
 
     sf::RenderWindow window(sf::VideoMode(width, height), "Snake");
+
+    menu(window, sock);
+
     sf::RectangleShape cell(sf::Vector2f(size_of_cell, size_of_cell));
     cell.setOutlineThickness(1.0f);
     cell.setOutlineColor(sf::Color::Black);
@@ -156,4 +159,73 @@ void send_key_to_server(sf::Keyboard::Key key, int server_sock){
         perror("Send key to server error");
         exit(-1);
     }
+}
+
+int menu(sf::RenderWindow &window, int server_sock){
+
+
+    sf::Font font;
+    font.loadFromFile("data/UbuntuMono-RI.ttf");
+
+    sf::Text start_text("Join game", font);
+    start_text.setCharacterSize(50);
+    start_text.setFillColor(sf::Color::Black);
+    start_text.setPosition(340.0f, 200.0f);
+    start_text.setStyle(sf::Text::Bold);
+
+
+    sf::Text exit_text("Exit", font);
+    exit_text.setCharacterSize(50);
+    exit_text.setFillColor(sf::Color::Black);
+    exit_text.setPosition(360.0f, 350.0f);
+
+    int menu_option = 0;
+
+    while (window.isOpen()){
+
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            // Close window and close connection
+            if (event.type == sf::Event::Closed) {
+                window.close();
+                // todo
+                // close connection
+            }
+
+            if (event.type == sf::Event::KeyPressed) {
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
+                    menu_option = 0;
+                    start_text.setStyle(sf::Text::Bold);
+                    exit_text.setStyle(sf::Text::Regular);
+                }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
+                    menu_option = 1;
+                    start_text.setStyle(sf::Text::Regular);
+                    exit_text.setStyle(sf::Text::Bold);
+                }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Enter)){
+                    if (menu_option == 0){
+                        // todo
+                        // start game
+                        return 0;
+                    }
+                    else {
+                        window.close();
+                        // todo
+                        // close connection
+                    }
+                }
+            }
+        }
+
+        window.clear(sf::Color::White);
+        window.draw(start_text);
+        window.draw(exit_text);
+        window.display();
+    }
+
+    // todo
+    // implement other things
+
+
 }
