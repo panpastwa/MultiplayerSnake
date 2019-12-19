@@ -1,6 +1,7 @@
 #include "server.h"
 
 // Array with socket numbers of connected clients
+int num_of_connected_clients = 0;
 int connected_clients[16];
 bool is_slot_empty[16];
 
@@ -43,16 +44,21 @@ int server()
         exit(-1);
     }
 
+
     // Print client's ip address and port number
     printf("New client connected %s : %d\n", inet_ntoa(client_structure.sin_addr), ntohs(client_structure.sin_port));
 
+    num_of_connected_clients++;
     connected_clients[0] = client_socket;
     is_slot_empty[0] = false;
-    std::thread t(client_service, 0);
+
+    std::thread t(client_service, client_socket);
+    printf("Client thread called\n");
+    t.join();
+    printf("Client thread finished\n");
 
     // Close connection with client
     shutdown(client_socket, SHUT_RDWR);
-
 
     return 0;
 
@@ -61,8 +67,6 @@ int server()
 void client_service(int sock){
     // todo
     // implement
-
-    write(sock, "hello", sizeof("hello"));
 
     // Wait for client's action in game menu
     int action = client_menu_service(sock);
@@ -87,7 +91,10 @@ void client_service(int sock){
     else if (action == 1) {
         // todo
         // implement queue and joining game
+        ;
     }
+
+    printf("Client thread ended\n");
 }
 
 int client_menu_service(int sock){
@@ -108,15 +115,19 @@ int client_menu_service(int sock){
             exit(-1);
         }
 
-        // Check if message has correct size
-        else if (num_read_bytes < 1024){
-            printf("Client %d: Message does not have correct size\n", sock);
-            exit(-1);
+        // Read 0 bytes - client disconnects
+        else if (num_read_bytes == 0){
+            printf("Client %d disconnects\n", sock);
+            // todo
+            // disconnect client
+            return 0;
         }
 
-        // Client exits app
-        if (data[0] == '0'){
-            return 0;
+        // Check if message has correct size for program purposes
+        else if (num_read_bytes != 1024){
+            printf("Client %d: Message does not have correct size %d\n", sock, num_read_bytes);
+            write(1, data, num_read_bytes);
+            exit(-1);
         }
 
         // Client wants to join game

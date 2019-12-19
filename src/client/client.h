@@ -8,4 +8,4 @@
 
 int client();
 void send_key_to_server(sf::Keyboard::Key key, int server_sock);
-int menu(sf::RenderWindow &window, int server_sock);
+void menu(sf::RenderWindow &window, int server_sock);

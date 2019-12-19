@@ -161,71 +161,83 @@ void send_key_to_server(sf::Keyboard::Key key, int server_sock){
     }
 }
 
-int menu(sf::RenderWindow &window, int server_sock){
+void menu(sf::RenderWindow &window, int server_sock){
 
-
+    // Create and load font
     sf::Font font;
     font.loadFromFile("data/UbuntuMono-RI.ttf");
 
+    // Create START GAME text
     sf::Text start_text("Join game", font);
     start_text.setCharacterSize(50);
     start_text.setFillColor(sf::Color::Black);
     start_text.setPosition(340.0f, 200.0f);
     start_text.setStyle(sf::Text::Bold);
 
-
+    // Create EXIT text
     sf::Text exit_text("Exit", font);
     exit_text.setCharacterSize(50);
     exit_text.setFillColor(sf::Color::Black);
     exit_text.setPosition(360.0f, 350.0f);
 
+    // Create variable holding information about highlighted state in menu
+    // 0 - start game
+    // 1 - exit
     int menu_option = 0;
 
+    // Main menu loop
     while (window.isOpen()){
 
         sf::Event event;
         while (window.pollEvent(event)) {
+
             // Close window and close connection
             if (event.type == sf::Event::Closed) {
                 window.close();
-                // todo
-                // close connection
+                shutdown(server_sock, SHUT_RDWR);
             }
 
+            // Any key pressed
             if (event.type == sf::Event::KeyPressed) {
+
+                // Navigation in menu using arrow key up
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
                     menu_option = 0;
                     start_text.setStyle(sf::Text::Bold);
                     exit_text.setStyle(sf::Text::Regular);
                 }
+
+                // Navigation in menu using arrow key down
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
                     menu_option = 1;
                     start_text.setStyle(sf::Text::Regular);
                     exit_text.setStyle(sf::Text::Bold);
                 }
+
+                // User chooses current option
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Enter)){
+
+                    // Current option - START GAME
                     if (menu_option == 0){
                         // todo
                         // start game
-                        return 0;
+                        return;
                     }
+
+                    // Current option - EXIT
                     else {
                         window.close();
-                        // todo
-                        // close connection
+                        shutdown(server_sock, SHUT_RDWR);
+                        exit(0);
                     }
                 }
             }
         }
 
+        // Drawing
         window.clear(sf::Color::White);
         window.draw(start_text);
         window.draw(exit_text);
         window.display();
     }
-
-    // todo
-    // implement other things
-
-
 }
