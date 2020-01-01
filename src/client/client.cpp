@@ -2,6 +2,7 @@
 
 // Size of board
 const int M = 30, N = 20;
+char board[N][M];
 int size_of_cell = 32;
 
 int client()
@@ -165,27 +166,6 @@ void game(sf::RenderWindow &window, int sock){
     exit_text.setFillColor(sf::Color::White);
     exit_text.setPosition(1100.0f, 250.0f);
 
-    // Create empty board
-    char board[N][M];
-    for (int i=0; i<N; ++i)
-        for (int j=0; j<M; ++j)
-            board[i][j] = 0;
-
-    // Exemplary data in board
-    board[2][3] = 1;
-    board[2][4] = 1;
-
-    board[12][6] = 2;
-    board[13][6] = 2;
-
-    board[6][18] = 3;
-    board[6][19] = 3;
-
-    board[19][0] = 4;
-    board[19][1] = 4;
-
-    board [10][10] = 5;
-
     // Set properties of cell
     sf::RectangleShape cell(sf::Vector2f(size_of_cell, size_of_cell));
     cell.setOutlineThickness(1.0f);
@@ -197,6 +177,10 @@ void game(sf::RenderWindow &window, int sock){
     fruit.setColor(sf::Color::White);
     fruit_texture.loadFromFile("data/fruit.png");
     fruit.setTexture(fruit_texture);
+
+    // Read initial board state and enable updating real-time
+    std::thread game_updater(update_game_state, sock);
+    game_updater.detach();
 
     // Main game loop
     while (window.isOpen())
@@ -292,4 +276,50 @@ void send_key_to_server(sf::Keyboard::Key key, int server_sock){
         perror("Send key to server error");
         exit(-1);
     }
+}
+
+void update_game_state(int sock){
+
+    while (true){
+
+        // Read message from server
+        char data[1024];
+        int num_read_bytes = read(sock, data, sizeof(data));
+
+        // Handle possible error
+        if (num_read_bytes == -1){
+            perror("Read error in client's game loop");
+            exit(-1);
+        }
+
+        // Read 0 bytes - server disconnects
+        else if (num_read_bytes == 0){
+            // server disconnects?
+            ;
+        }
+
+        // Check if message has correct size for program purposes
+        else if (num_read_bytes != 1024){
+            printf("Message does not have correct size %d\n", num_read_bytes);
+            write(1, data, num_read_bytes);
+            exit(-1);
+        }
+
+        // Server sends board state
+        if (data[0] == 'B'){
+            for (int i=0; i<N; ++i) {
+                for (int j = 0; j < M; ++j) {
+                    board[i][j] = data[i*M + j + 1];
+                }
+            }
+            printf("Read new game state from server\n");
+        }
+
+        // Unknown first character
+        else {
+            printf("Client %d: Unknown action\n", sock);
+            exit(-1);
+        }
+    }
+
 }

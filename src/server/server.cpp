@@ -143,6 +143,8 @@ void client_menu_service(int sock){
         else {
             queue.push_back(sock);
         }
+        std::thread t1(server_game_service);
+        t1.detach();
         return;
     }
 
@@ -220,5 +222,40 @@ void client_game_service(int sock){
             printf("Client %d: Unknown action\n", sock);
             exit(-1);
         }
+    }
+}
+
+void server_game_service(){
+
+    // Exemplary data in board
+    board[2][3] = 1;
+    board[2][4] = 1;
+
+    board[12][6] = 2;
+    board[13][6] = 2;
+
+    board[6][18] = 3;
+    board[6][19] = 3;
+
+    board[19][0] = 4;
+    board[19][1] = 4;
+
+    board [10][10] = 5;
+
+    while (num_of_players_in_game > 0) {
+
+        // Send state of game
+        char msg[1024];
+        msg[0] = 'B';
+        for (int i=0; i<N; ++i) {
+            for (int j = 0; j < M; ++j) {
+                msg[i*M + j + 1] = board[i][j];
+            }
+        }
+        for (int player_sock : current_players) {
+            write(player_sock, msg, 1024);
+        }
+
+        sleep(1);
     }
 }
