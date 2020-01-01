@@ -101,11 +101,24 @@ void menu(sf::RenderWindow &window, int sock){
 
                     // Current option - START GAME
                     if (menu_option == 0){
+
+                        // Send message to server
+                        int num_of_bytes = write(sock, "1", 1024);
+                        if (num_of_bytes == -1){
+                            perror("Start game info send error");
+                            exit(-1);
+                        } else if (num_of_bytes < 1024){
+                            printf("Too little bytes send\n");
+                            exit(-1);
+                        }
+
                         return;
                     }
 
                     // Current option - EXIT
                     else {
+
+                        // Close window and close connection
                         window.close();
                         int error = shutdown(sock, SHUT_RDWR);
                         if (error == -1){
@@ -269,7 +282,7 @@ void send_key_to_server(sf::Keyboard::Key key, int server_sock){
     char msg[1024] = "KEY:";
 
     // adding '0' for clean printf
-    msg[4] = key-71 + '0';
+    msg[4] = key-71;
     msg[5] = '\n';
     msg[6] = '\0';
     int num_of_bytes = write(server_sock, msg, sizeof(msg));

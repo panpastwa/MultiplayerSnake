@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <thread>
+#include <list>
 
 int server();
 void client_service(int sock);
