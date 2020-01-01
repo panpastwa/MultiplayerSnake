@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <thread>
 #include <list>
+#include "Player.h"
 
 int server();
 void client_service(int sock);

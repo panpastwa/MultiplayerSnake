@@ -295,7 +295,8 @@ void update_game_state(int sock){
         // Read 0 bytes - server disconnects
         else if (num_read_bytes == 0){
             // server disconnects?
-            ;
+            printf("Server disconnected\n");
+            exit(0);
         }
 
         // Check if message has correct size for program purposes

@@ -13,7 +13,7 @@ char board[N][M];
 
 // Players in game
 int num_of_players_in_game = 0;
-std::list<int> current_players = {};
+std::list<Player> current_players = {};
 
 // Queue
 std::list<int> queue = {};
@@ -137,7 +137,7 @@ void client_menu_service(int sock){
         printf("Client %d: Wants to join the game\n", sock);
         if (num_of_players_in_game < 4){
             num_of_players_in_game++;
-            current_players.push_back(sock);
+            current_players.push_back(Player(sock, 5, 5));
             printf("Client %d: Joined the game\n", sock);
         }
         else {
@@ -197,7 +197,12 @@ void client_game_service(int sock){
             num_of_connected_clients--;
 
             // Delete from game players list
-            current_players.remove(sock);
+            for (Player player : current_players){
+                if (player.socket_num == sock){
+                    current_players.remove(player);
+                    break;
+                }
+            }
             num_of_players_in_game--;
 
             printf("Client %d successfuly disconnected from server", sock);
@@ -211,10 +216,16 @@ void client_game_service(int sock){
             exit(-1);
         }
 
-        // Client wants to join game
+        // Client sends key to server
         if (data[0] == 'K'){
             int key_num = data[4];
             printf("Client %d: Send key %d to server\n", sock, key_num);
+            for (Player &player : current_players){
+                if (player.socket_num == sock){
+                    player.move_direction = key_num;
+                    printf("Client %d: New direction %d\n", player.socket_num, player.move_direction);
+                }
+            }
         }
 
         // Unknown first character
@@ -227,22 +238,66 @@ void client_game_service(int sock){
 
 void server_game_service(){
 
-    // Exemplary data in board
-    board[2][3] = 1;
-    board[2][4] = 1;
 
-    board[12][6] = 2;
-    board[13][6] = 2;
-
-    board[6][18] = 3;
-    board[6][19] = 3;
-
-    board[19][0] = 4;
-    board[19][1] = 4;
-
-    board [10][10] = 5;
 
     while (num_of_players_in_game > 0) {
+
+        // Exemplary data in board
+//    board[2][3] = 1;
+//    board[2][4] = 1;
+//
+//    board[12][6] = 2;
+//    board[13][6] = 2;
+//
+//    board[6][18] = 3;
+//    board[6][19] = 3;
+//
+//    board[19][0] = 4;
+//    board[19][1] = 4;
+
+        board [10][10] = 5;
+
+        for (Player &player : current_players) {
+
+            Point point = player.list_of_points.front();
+            int x, y;
+            if (player.move_direction == 0){
+                // left
+                x = point.x;
+                y = point.y - 1;
+            } else if (player.move_direction == 1){
+                // right
+                x = point.x;
+                y = point.y + 1;
+            } else if (player.move_direction == 2){
+                // up
+                x = point.x - 1;
+                y = point.y;
+            } else if (player.move_direction == 3){
+                // down
+                x = point.x + 1;
+                y = point.y;
+            } else {
+                printf("Wrong direction\n");
+                exit(-1);
+            }
+
+            player.list_of_points.pop_back();
+
+            if (x >= 0 && x < M && y >= 0 && y < N){
+                player.list_of_points.push_front(Point(x, y));
+            }
+            else {
+                printf("Player %d lost", player.socket_num);
+                // todo
+                // losing game
+                exit(0);
+            }
+
+            for (Point p : player.list_of_points){
+                board[p.x][p.y] = 1;
+            }
+        }
 
         // Send state of game
         char msg[1024];
@@ -250,12 +305,16 @@ void server_game_service(){
         for (int i=0; i<N; ++i) {
             for (int j = 0; j < M; ++j) {
                 msg[i*M + j + 1] = board[i][j];
+                board[i][j] = 0;
             }
         }
-        for (int player_sock : current_players) {
-            write(player_sock, msg, 1024);
+        for (Player player : current_players) {
+            for (Point p : player.list_of_points){
+                printf("x: %d\ty: %d\n", p.x, p.y);
+            }
+            write(player.socket_num, msg, 1024);
         }
 
-        sleep(1);
+        usleep(300000);
     }
 }
