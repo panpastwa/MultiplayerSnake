@@ -26,7 +26,7 @@ int client()
         exit(-1);
     }
 
-    int width = M*size_of_cell;
+    int width = (M + 10)*size_of_cell;
     int height = N*size_of_cell;
     sf::RenderWindow window(sf::VideoMode(width, height), "Snake");
 
@@ -134,6 +134,24 @@ void queue(sf::RenderWindow &window, int sock){
 
 void game(sf::RenderWindow &window, int sock){
 
+    // Create and load font
+    sf::Font font;
+    font.loadFromFile("data/UbuntuMono-RI.ttf");
+
+    // Create SCOREBOARD text
+    sf::Text scoreboard_text("Scoreboard", font);
+    scoreboard_text.setCharacterSize(25);
+    scoreboard_text.setFillColor(sf::Color::White);
+    scoreboard_text.setPosition(1050.0f, 100.0f);
+    scoreboard_text.setStyle(sf::Text::Bold);
+
+    // todo
+    // Add scoreboard
+    sf::Text exit_text("todo...", font);
+    exit_text.setCharacterSize(20);
+    exit_text.setFillColor(sf::Color::White);
+    exit_text.setPosition(1100.0f, 250.0f);
+
     // Create empty board
     char board[N][M];
     for (int i=0; i<N; ++i)
@@ -194,43 +212,36 @@ void game(sf::RenderWindow &window, int sock){
 
         // Drawing
         window.clear();
-        for (int i=0; i<N; ++i)
-            for (int j=0; j<M; ++j){
+        for (int i=0; i<N; ++i){
+            for (int j=0; j<M; ++j) {
                 if (board[i][j] == 0) {
                     cell.setFillColor(sf::Color::White);
-                    cell.setPosition(size_of_cell*j, size_of_cell*i);
+                    cell.setPosition(size_of_cell * j, size_of_cell * i);
                     window.draw(cell);
-                }
-                else if (board[i][j] == 1) {
+                } else if (board[i][j] == 1) {
                     cell.setFillColor(sf::Color::Magenta);
-                    cell.setPosition(size_of_cell*j, size_of_cell*i);
+                    cell.setPosition(size_of_cell * j, size_of_cell * i);
                     window.draw(cell);
-                }
-
-                else if (board[i][j] == 2) {
+                } else if (board[i][j] == 2) {
                     cell.setFillColor(sf::Color::Blue);
-                    cell.setPosition(size_of_cell*j, size_of_cell*i);
+                    cell.setPosition(size_of_cell * j, size_of_cell * i);
                     window.draw(cell);
-                }
-
-                else if (board[i][j] == 3) {
+                } else if (board[i][j] == 3) {
                     cell.setFillColor(sf::Color::Green);
-                    cell.setPosition(size_of_cell*j, size_of_cell*i);
+                    cell.setPosition(size_of_cell * j, size_of_cell * i);
                     window.draw(cell);
-                }
-
-                else if (board[i][j] == 4) {
+                } else if (board[i][j] == 4) {
                     cell.setFillColor(sf::Color::Yellow);
-                    cell.setPosition(size_of_cell*j, size_of_cell*i);
+                    cell.setPosition(size_of_cell * j, size_of_cell * i);
                     window.draw(cell);
-                }
-
-                else {
+                } else {
                     printf("Unknown board matrix value");
                     exit(-1);
                 }
-
             }
+        }
+        window.draw(scoreboard_text);
+        window.draw(exit_text);
         window.display();
     }
 }
