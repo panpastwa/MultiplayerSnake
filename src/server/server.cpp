@@ -14,6 +14,7 @@ char board[N][M];
 // Players in game
 int num_of_players_in_game = 0;
 std::list<Player> current_players = {};
+std::list<int> available_player_numbers = {1, 2, 3, 4};
 
 // Queue
 std::list<int> queue = {};
@@ -44,30 +45,30 @@ int server()
         exit(-1);
     }
 
-    // Wait for and accept one client
-    struct sockaddr_in client_structure;
-    socklen_t size_of_client_structure = sizeof(client_structure);
-    int client_socket = accept(server_socket, (sockaddr*)&client_structure, &size_of_client_structure);
-    if (client_socket == -1){
-        perror("Accept error");
-        exit(-1);
+    // Wait for clients
+    while (num_of_connected_clients < 16){
+
+        struct sockaddr_in client_structure;
+        socklen_t size_of_client_structure = sizeof(client_structure);
+        printf("Server is ready to accept a new connection\n");
+        int client_socket = accept(server_socket, (sockaddr*)&client_structure, &size_of_client_structure);
+        if (client_socket == -1){
+            perror("Accept error");
+            exit(-1);
+        }
+        // Print client's ip address and port number
+        printf("New client connected %s : %d\n", inet_ntoa(client_structure.sin_addr), ntohs(client_structure.sin_port));
+
+        // Add client to connected clients
+        connected_clients[num_of_connected_clients] = client_socket;
+        is_slot_empty[num_of_connected_clients] = false;
+        num_of_connected_clients++;
+
+        // Start client thread
+        std::thread t(client_service, client_socket);
+        printf("Client thread called\n");
+        t.detach();
     }
-
-
-    // Print client's ip address and port number
-    printf("New client connected %s : %d\n", inet_ntoa(client_structure.sin_addr), ntohs(client_structure.sin_port));
-
-    num_of_connected_clients++;
-    connected_clients[0] = client_socket;
-    is_slot_empty[0] = false;
-
-    std::thread t(client_service, client_socket);
-    printf("Client thread called\n");
-    t.join();
-    printf("Client thread finished\n");
-
-    // Close connection with client
-    shutdown(client_socket, SHUT_RDWR);
 
     return 0;
 
@@ -134,17 +135,33 @@ void client_menu_service(int sock){
 
     // Client wants to join game
     if (data[0] == '1'){
+
         printf("Client %d: Wants to join the game\n", sock);
+
+        // If there is enough space for new player --> join game
         if (num_of_players_in_game < 4){
+
+            // If noone in the game --> start server game thread
+            if (num_of_players_in_game == 0){
+                std::thread t1(server_game_service);
+                t1.detach();
+            }
+
+            // Add new player to the game
             num_of_players_in_game++;
-            current_players.push_back(Player(sock, 5, 5));
+            int players_number = available_player_numbers.front();
+            available_player_numbers.pop_front();
+            int starting_x = rand() % N;
+            int starting_y = rand() % M;
+            current_players.push_back(Player(sock, players_number, starting_x, starting_y));
             printf("Client %d: Joined the game\n", sock);
-        }
-        else {
+
+        } else {
+
+            // Add to queue
             queue.push_back(sock);
         }
-        std::thread t1(server_game_service);
-        t1.detach();
+
         return;
     }
 
@@ -238,22 +255,8 @@ void client_game_service(int sock){
 
 void server_game_service(){
 
-
-
+    // While someone is in the game
     while (num_of_players_in_game > 0) {
-
-        // Exemplary data in board
-//    board[2][3] = 1;
-//    board[2][4] = 1;
-//
-//    board[12][6] = 2;
-//    board[13][6] = 2;
-//
-//    board[6][18] = 3;
-//    board[6][19] = 3;
-//
-//    board[19][0] = 4;
-//    board[19][1] = 4;
 
         board [10][10] = 5;
 
@@ -284,7 +287,7 @@ void server_game_service(){
 
             player.list_of_points.pop_back();
 
-            if (x >= 0 && x < M && y >= 0 && y < N){
+            if (x >= 0 && x < N && y >= 0 && y < M){
                 player.list_of_points.push_front(Point(x, y));
             }
             else {
@@ -295,7 +298,7 @@ void server_game_service(){
             }
 
             for (Point p : player.list_of_points){
-                board[p.x][p.y] = 1;
+                board[p.x][p.y] = player.number;
             }
         }
 

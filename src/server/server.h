@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <cstdlib>
 #include <thread>
 #include <list>
 #include "Player.h"
