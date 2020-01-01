@@ -171,10 +171,19 @@ void game(sf::RenderWindow &window, int sock){
     board[19][0] = 4;
     board[19][1] = 4;
 
+    board [10][10] = 5;
+
     // Set properties of cell
     sf::RectangleShape cell(sf::Vector2f(size_of_cell, size_of_cell));
     cell.setOutlineThickness(1.0f);
-    cell.setOutlineColor(sf::Color::Black);
+    cell.setOutlineColor(sf::Color::White);
+
+    // Create a fruit
+    sf::Sprite fruit;
+    sf::Texture fruit_texture;
+    fruit.setColor(sf::Color::White);
+    fruit_texture.loadFromFile("data/fruit.png");
+    fruit.setTexture(fruit_texture);
 
     // Main game loop
     while (window.isOpen())
@@ -215,7 +224,7 @@ void game(sf::RenderWindow &window, int sock){
         for (int i=0; i<N; ++i){
             for (int j=0; j<M; ++j) {
                 if (board[i][j] == 0) {
-                    cell.setFillColor(sf::Color::White);
+                    cell.setFillColor(sf::Color::Black);
                     cell.setPosition(size_of_cell * j, size_of_cell * i);
                     window.draw(cell);
                 } else if (board[i][j] == 1) {
@@ -234,6 +243,9 @@ void game(sf::RenderWindow &window, int sock){
                     cell.setFillColor(sf::Color::Yellow);
                     cell.setPosition(size_of_cell * j, size_of_cell * i);
                     window.draw(cell);
+                } else if (board[i][j] == 5) {
+                    fruit.setPosition(size_of_cell * j+1, size_of_cell * i+1);
+                    window.draw(fruit);
                 } else {
                     printf("Unknown board matrix value");
                     exit(-1);
