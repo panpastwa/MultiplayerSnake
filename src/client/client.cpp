@@ -248,7 +248,7 @@ void game(sf::RenderWindow &window, int sock){
                     fruit.setPosition(size_of_cell * j+1, size_of_cell * i+1);
                     window.draw(fruit);
                 } else {
-                    printf("Unknown board matrix value");
+                    printf("Unknown board matrix value: %d\n", board[i][j]);
                     exit(-1);
                 }
             }
@@ -320,10 +320,11 @@ void update_game_state(int sock){
             printf("Read new game state from server\n");
         }
 
-        // Server sends information about a lose
+        // Server sends information about a lose --> Reply and go back to menu
         else if (data[0] == 'L'){
             printf("You lost\n");
             is_in_game = false;
+            write(sock, "L", 1024);
             return;
         }
 
