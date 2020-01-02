@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <thread>
 #include <list>
+#include <stack>
 #include "Player.h"
 
 int server();

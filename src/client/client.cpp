@@ -4,6 +4,7 @@
 const int M = 30, N = 20;
 char board[N][M];
 int size_of_cell = 32;
+bool is_in_game;
 
 int client()
 {
@@ -31,11 +32,12 @@ int client()
     int height = N*size_of_cell;
     sf::RenderWindow window(sf::VideoMode(width, height), "Snake");
 
-    menu(window, sock);
-    queue(window, sock);
-    game(window, sock);
-    score(window, sock);
-
+    while (true){
+        menu(window, sock);
+        queue(window, sock);
+        game(window, sock);
+        score(window, sock);
+    }
     return 0;
 }
 
@@ -182,8 +184,10 @@ void game(sf::RenderWindow &window, int sock){
     std::thread game_updater(update_game_state, sock);
     game_updater.detach();
 
+    is_in_game = true;
+
     // Main game loop
-    while (window.isOpen())
+    while (window.isOpen() && is_in_game)
     {
         sf::Event event;
         while (window.pollEvent(event))
@@ -314,6 +318,13 @@ void update_game_state(int sock){
                 }
             }
             printf("Read new game state from server\n");
+        }
+
+        // Server sends information about a lose
+        else if (data[0] == 'L'){
+            printf("You lost\n");
+            is_in_game = false;
+            return;
         }
 
         // Unknown first character

@@ -14,7 +14,7 @@ char board[N][M];
 // Players in game
 int num_of_players_in_game = 0;
 std::list<Player> current_players = {};
-std::list<int> available_player_numbers = {1, 2, 3, 4};
+std::stack<int> available_player_numbers;
 
 // Queue
 std::list<int> queue = {};
@@ -45,6 +45,8 @@ int server()
         exit(-1);
     }
 
+    std::thread t;
+
     // Wait for clients
     while (num_of_connected_clients < 16){
 
@@ -65,10 +67,10 @@ int server()
         num_of_connected_clients++;
 
         // Start client thread
-        std::thread t(client_service, client_socket);
+        t = std::thread(client_service, client_socket);
         printf("Client thread called\n");
-        t.detach();
     }
+    t.join();
 
     return 0;
 
@@ -143,14 +145,18 @@ void client_menu_service(int sock){
 
             // If noone in the game --> start server game thread
             if (num_of_players_in_game == 0){
+                available_player_numbers.push(1);
+                available_player_numbers.push(2);
+                available_player_numbers.push(3);
+                available_player_numbers.push(4);
                 std::thread t1(server_game_service);
                 t1.detach();
             }
 
             // Add new player to the game
             num_of_players_in_game++;
-            int players_number = available_player_numbers.front();
-            available_player_numbers.pop_front();
+            int players_number = available_player_numbers.top();
+            available_player_numbers.pop();
             int starting_x = rand() % N;
             int starting_y = rand() % M;
             current_players.push_back(Player(sock, players_number, starting_x, starting_y));
@@ -255,10 +261,10 @@ void client_game_service(int sock){
 
 void server_game_service(){
 
+    Point bonus(rand()%N, rand()%M);
+
     // While someone is in the game
     while (num_of_players_in_game > 0) {
-
-        board [10][10] = 5;
 
         for (Player &player : current_players) {
 
@@ -285,22 +291,36 @@ void server_game_service(){
                 exit(-1);
             }
 
-            player.list_of_points.pop_back();
+            if (x == bonus.x && y == bonus.y){
+                bonus.x = rand() % N;
+                bonus.y = rand() % M;
+            }
+            else {
+                player.list_of_points.pop_back();
+            }
 
             if (x >= 0 && x < N && y >= 0 && y < M){
                 player.list_of_points.push_front(Point(x, y));
+                for (Point &p : player.list_of_points){
+                    board[p.x][p.y] = player.number;
+                }
             }
             else {
-                printf("Player %d lost", player.socket_num);
-                // todo
-                // losing game
-                exit(0);
-            }
-
-            for (Point p : player.list_of_points){
-                board[p.x][p.y] = player.number;
+                // Player loses
+                printf("Player %d lost\n", player.socket_num);
+                write(player.socket_num, "L", 1024);
+                available_player_numbers.push(player.number);
+                current_players.remove(player);
+                num_of_players_in_game--;
+                if (num_of_players_in_game == 0){
+                    printf("Game thread ended\n");
+                    exit(0);
+                }
             }
         }
+
+        // Apple bonus
+        board[bonus.x][bonus.y] = 5;
 
         // Send state of game
         char msg[1024];
@@ -311,8 +331,9 @@ void server_game_service(){
                 board[i][j] = 0;
             }
         }
-        for (Player player : current_players) {
-            for (Point p : player.list_of_points){
+
+        for (Player &player : current_players) {
+            for (Point &p : player.list_of_points){
                 printf("x: %d\ty: %d\n", p.x, p.y);
             }
             write(player.socket_num, msg, 1024);
