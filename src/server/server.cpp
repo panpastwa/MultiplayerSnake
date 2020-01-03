@@ -81,6 +81,12 @@ int server()
 
     }
 
+    for (int i=0; i<16; i++){
+        if (client_threads[i].joinable()){
+            client_threads[i].join();
+        }
+    }
+
     return 0;
 
 }
@@ -126,10 +132,10 @@ void client_service(int sock){
             is_slot_empty[index] = true;
             connected_clients[index] = 0;
             num_of_connected_clients--;
-            printf("Client %d: Successfuly disconnected from server", sock);
+            printf("Client %d: Successfuly disconnected from server\n", sock);
 
             // Finish client thread
-            printf("Client %d: End of thread", sock);
+            printf("Client %d: End of thread\n", sock);
             return;
         }
 
@@ -200,7 +206,7 @@ void client_service(int sock){
                     if (connected_clients[i] == sock)
                         index = i;
                 if (index == -1) {
-                    printf("Could not find correct index in clients array");
+                    printf("Could not find correct index in clients array\n");
                     exit(-1);
                 }
 
@@ -217,11 +223,11 @@ void client_service(int sock){
                 is_slot_empty[index] = true;
                 connected_clients[index] = 0;
                 num_of_connected_clients--;
-                printf("Client %d: Successfuly disconnected from server", sock);
+                printf("Client %d: Successfuly disconnected from server\n", sock);
 
 
                 // Finish client thread
-                printf("Client %d: End of thread", sock);
+                printf("Client %d: End of thread\n", sock);
                 return;
             }
 
