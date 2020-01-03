@@ -114,6 +114,74 @@ int server()
 
 void client_service(int sock){
 
+    // Read message from client
+    char data[1024];
+    int num_read_bytes = read(sock, data, sizeof(data));
+
+    // Handle possible error
+    if (num_read_bytes == -1){
+        perror("Read error in client's main loop");
+        exit(-1);
+    }
+
+        // Read 0 bytes - client disconnects
+    else if (num_read_bytes == 0){
+
+        printf("Client %d disconnecting\n", sock);
+
+        // Close the connection
+        int error = shutdown(sock, SHUT_RDWR);
+        if (error == -1){
+            perror("Shutdown error");
+            exit(-1);
+        }
+
+        // Find correct index in array
+        int index = -1;
+        for (int i=0; i<16; ++i)
+            if (connected_clients[i] == sock)
+                index = i;
+        if (index == -1) {
+            printf("Could not find correct index in clients array");
+            exit(-1);
+        }
+
+        // Update values in arrays
+        is_slot_empty[index] = true;
+        connected_clients[index] = 0;
+        num_of_connected_clients--;
+        printf("Client %d: Successfuly disconnected from server\n", sock);
+
+        // Finish client thread
+        printf("Client %d: End of thread\n", sock);
+        return;
+    }
+
+        // Check if message has correct size for program purposes
+    else if (num_read_bytes != 1024){
+        printf("Client %d: Message does not have correct size %d\n", sock, num_read_bytes);
+        write(1, data, num_read_bytes);
+        exit(-1);
+    }
+
+    // Client sends their nickname
+    if (data[0] == 'N'){
+        char nickname[16];
+        for (int i=0; i<16; i++){
+            nickname[i] = data[i+1];
+            if (nickname[i] == 0){
+                break;
+            }
+        }
+        printf("Client %d: New nickname: %s\n", sock, nickname);
+    }
+
+    // Unknown first character
+    else {
+        printf("Client %d: Unknown action\n", sock);
+        exit(-1);
+    }
+
     // Client thread
     while (true) {
 

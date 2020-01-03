@@ -6,9 +6,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <thread>
+#include <string>
 
 int client();
 void send_key_to_server(sf::Keyboard::Key key, int server_sock);
+void enter_nickname(sf::RenderWindow &window, int sock);
 void menu(sf::RenderWindow &window, int sock);
 void queue(sf::RenderWindow &window, int sock);
 void game(sf::RenderWindow &window, int sock);

@@ -32,14 +32,115 @@ int client()
     int height = N*size_of_cell;
     sf::RenderWindow window(sf::VideoMode(width, height), "Snake");
 
+    enter_nickname(window, sock);
+
     while (true){
         menu(window, sock);
         queue(window, sock);
         game(window, sock);
         score(window, sock);
     }
-    return 0;
 }
+
+
+void enter_nickname(sf::RenderWindow &window, int sock) {
+
+    // Create and load font
+    sf::Font font;
+    font.loadFromFile("data/UbuntuMono-RI.ttf");
+
+    // Create ENTER NICKNAME text
+    sf::Text enter_nick_text("Enter your nickname", font);
+    enter_nick_text.setCharacterSize(50);
+    enter_nick_text.setFillColor(sf::Color::Black);
+    enter_nick_text.setPosition(340.0f, 200.0f);
+    enter_nick_text.setStyle(sf::Text::Bold);
+
+    // Create NICKNAME text
+    sf::Text nick_text("", font);
+    nick_text.setCharacterSize(50);
+    nick_text.setFillColor(sf::Color::Black);
+    nick_text.setPosition(360.0f, 350.0f);
+
+    // Nick to be sent
+    char text_to_send[17];
+    text_to_send[0] = 'N';
+    int current_index_in_text = 1;
+
+    // Main menu loop
+    while (window.isOpen()) {
+
+        sf::Event event;
+        while (window.pollEvent(event)) {
+
+            // Close window and close connection
+            if (event.type == sf::Event::Closed) {
+                window.close();
+                int error = shutdown(sock, SHUT_RDWR);
+                if (error == -1) {
+                    perror("Shutdown error");
+                    exit(-1);
+                }
+                exit(0);
+            }
+
+            // Any key pressed
+            if (event.type == sf::Event::KeyPressed) {
+
+                int key = event.key.code;
+
+                // If character is between A and Z
+                if (key <= sf::Keyboard::Z) {
+
+                    // Nick must be shorter than 16 characters
+                    if (current_index_in_text < 16){
+                        char new_char = key + 'A';
+                        nick_text.setString(nick_text.getString() + new_char);
+                        text_to_send[current_index_in_text++] = new_char;
+                    }
+                    else {
+                        printf("Too long nick\n");
+                    }
+
+                }
+
+                // Client accepts his nickname --> send it to a server
+                else if (key == sf::Keyboard::Key::Enter) {
+
+                    // Nick must be at least 4 characters long
+                    if (current_index_in_text < 5){
+                        printf("Too short nick\n");
+                        continue;
+                    }
+
+                    // Adding \0 char at the end
+                    for (int i=current_index_in_text; i<=18; i++){
+                        text_to_send[i] = 0;
+                    }
+
+                    // Send message to server
+                    printf("Nick accepted: %s\n", text_to_send);
+                    int num_of_bytes = write(sock, text_to_send, 1024);
+                    if (num_of_bytes == -1){
+                        perror("Start game info send error");
+                        exit(-1);
+                    } else if (num_of_bytes < 1024){
+                        printf("Too little bytes send\n");
+                        exit(-1);
+                    }
+                    return;
+                }
+            }
+        }
+
+        // Drawing
+        window.clear(sf::Color::White);
+        window.draw(enter_nick_text);
+        window.draw(nick_text);
+        window.display();
+    }
+}
+
 
 void menu(sf::RenderWindow &window, int sock){
 
