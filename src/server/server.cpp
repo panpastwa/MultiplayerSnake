@@ -22,6 +22,11 @@ std::list<int> queue = {};
 
 int server()
 {
+    // Initializing values
+    for (int i=0; i<16; i++){
+        is_slot_empty[i] = true;
+    }
+
     // Create socket
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket == -1){
@@ -69,13 +74,29 @@ int server()
         // Print client's ip address and port number
         printf("New client connected %s : %d\n", inet_ntoa(client_structure.sin_addr), ntohs(client_structure.sin_port));
 
+        // Find index for new client
+        int client_index = -1;
+        for (int i=0; i<16; i++){
+            if (is_slot_empty[i]){
+                client_index = i;
+                break;
+            }
+        }
+
         // Add client to connected clients
-        connected_clients[num_of_connected_clients] = client_socket;
-        is_slot_empty[num_of_connected_clients] = false;
+        connected_clients[client_index] = client_socket;
+        is_slot_empty[client_index] = false;
+
+        // If there is an active thread for client at given index --> join()
+        if (client_threads[client_index].joinable()){
+            client_threads[client_index].join();
+        }
 
         // Start client thread
-        client_threads[num_of_connected_clients] = std::thread(client_service, client_socket);
+        printf("Thread joinable: %d\n", client_threads[client_index].joinable());
+        client_threads[client_index] = std::thread(client_service, client_socket);
         printf("Client thread called\n");
+        printf("Thread joinable: %d\n", client_threads[client_index].joinable());
 
         num_of_connected_clients++;
 
