@@ -8,7 +8,9 @@
 #include <list>
 #include <stack>
 #include "Player.h"
+#include "Client.h"
 
 int server();
-void client_service(int sock);
+void client_service(Client &client);
+void client_manager();
 void server_game_service();

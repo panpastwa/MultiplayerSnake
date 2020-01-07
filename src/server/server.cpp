@@ -8,6 +8,8 @@ int connected_clients[16];
 bool is_slot_empty[16];
 std::thread client_threads[16];
 
+std::list<Client> list_of_clients;
+
 // Board
 const int M = 30, N = 20;
 char board[N][M];
@@ -66,53 +68,44 @@ int server()
         struct sockaddr_in client_structure;
         socklen_t size_of_client_structure = sizeof(client_structure);
         printf("Server is ready to accept a new connection\n");
+
+        // Accept new client
         int client_socket = accept(server_socket, (sockaddr*)&client_structure, &size_of_client_structure);
         if (client_socket == -1){
             perror("Accept error");
             exit(-1);
         }
-        // Print client's ip address and port number
-        printf("New client connected %s : %d\n", inet_ntoa(client_structure.sin_addr), ntohs(client_structure.sin_port));
 
-        // Find index for new client
-        int client_index = -1;
-        for (int i=0; i<16; i++){
-            if (is_slot_empty[i]){
-                client_index = i;
+        // Remove disconnected clients from the list_of_clients and join their thread
+        for (Client &c : list_of_clients){
+            if (!c.is_active){
+                c.client_thread.join();
+                printf("Client %d: Successfully removed from client list\n", c.sock);
+                list_of_clients.remove(Client(c.sock));
                 break;
+                // todo
+                // sigsegv
             }
         }
 
-        // Add client to connected clients
-        connected_clients[client_index] = client_socket;
-        is_slot_empty[client_index] = false;
+        // Print client's ip address and port number
+        printf("New client connected %s : %d\n", inet_ntoa(client_structure.sin_addr), ntohs(client_structure.sin_port));
 
-        // If there is an active thread for client at given index --> join()
-        if (client_threads[client_index].joinable()){
-            client_threads[client_index].join();
-        }
-
-        // Start client thread
-        printf("Thread joinable: %d\n", client_threads[client_index].joinable());
-        client_threads[client_index] = std::thread(client_service, client_socket);
-        printf("Client thread called\n");
-        printf("Thread joinable: %d\n", client_threads[client_index].joinable());
+        // Add new client to the list_of_clients and start their thread
+        list_of_clients.push_back(Client(client_socket));
+        list_of_clients.back().client_thread = std::thread(client_service, std::ref(list_of_clients.back()));
 
         num_of_connected_clients++;
 
-    }
-
-    for (int i=0; i<16; i++){
-        if (client_threads[i].joinable()){
-            client_threads[i].join();
-        }
     }
 
     return 0;
 
 }
 
-void client_service(int sock){
+void client_service(Client &client){
+
+    int sock = client.sock;
 
     // Read message from client
     char data[1024];
@@ -124,7 +117,7 @@ void client_service(int sock){
         exit(-1);
     }
 
-        // Read 0 bytes - client disconnects
+    // Read 0 bytes - client disconnects
     else if (num_read_bytes == 0){
 
         printf("Client %d disconnecting\n", sock);
@@ -136,19 +129,8 @@ void client_service(int sock){
             exit(-1);
         }
 
-        // Find correct index in array
-        int index = -1;
-        for (int i=0; i<16; ++i)
-            if (connected_clients[i] == sock)
-                index = i;
-        if (index == -1) {
-            printf("Could not find correct index in clients array");
-            exit(-1);
-        }
-
-        // Update values in arrays
-        is_slot_empty[index] = true;
-        connected_clients[index] = 0;
+        // Marking client as disconnected
+        client.is_active = false;
         num_of_connected_clients--;
         printf("Client %d: Successfuly disconnected from server\n", sock);
 
@@ -157,7 +139,7 @@ void client_service(int sock){
         return;
     }
 
-        // Check if message has correct size for program purposes
+    // Check if message has correct size for program purposes
     else if (num_read_bytes != 1024){
         printf("Client %d: Message does not have correct size %d\n", sock, num_read_bytes);
         write(1, data, num_read_bytes);
@@ -166,6 +148,8 @@ void client_service(int sock){
 
     // Client sends their nickname
     if (data[0] == 'N'){
+        // todo
+        // add nickname to Client
         char nickname[16];
         for (int i=0; i<16; i++){
             nickname[i] = data[i+1];
@@ -186,8 +170,7 @@ void client_service(int sock){
     while (true) {
 
         // Read message from client
-        char data[1024];
-        int num_read_bytes = read(sock, data, sizeof(data));
+        num_read_bytes = read(sock, data, sizeof(data));
 
         // Handle possible error
         if (num_read_bytes == -1){
@@ -207,19 +190,8 @@ void client_service(int sock){
                 exit(-1);
             }
 
-            // Find correct index in array
-            int index = -1;
-            for (int i=0; i<16; ++i)
-                if (connected_clients[i] == sock)
-                    index = i;
-            if (index == -1) {
-                printf("Could not find correct index in clients array");
-                exit(-1);
-            }
-
-            // Update values in arrays
-            is_slot_empty[index] = true;
-            connected_clients[index] = 0;
+            // Marking client as disconnected
+            client.is_active = false;
             num_of_connected_clients--;
             printf("Client %d: Successfuly disconnected from server\n", sock);
 
@@ -280,6 +252,14 @@ void client_service(int sock){
             // Read 0 bytes - client disconnects
             else if (num_read_bytes == 0){
 
+                // Delete from game players list
+                for (Player &player : current_players){
+                    if (player.sock == sock){
+                        current_players.remove(player);
+                        break;
+                    }
+                }
+
                 printf("Client %d disconnecting\n", sock);
 
                 // Close the connection
@@ -289,31 +269,10 @@ void client_service(int sock){
                     exit(-1);
                 }
 
-                // Find correct index in array
-                int index = -1;
-                for (int i=0; i<16; ++i)
-                    if (connected_clients[i] == sock)
-                        index = i;
-                if (index == -1) {
-                    printf("Could not find correct index in clients array\n");
-                    exit(-1);
-                }
-
-                // Delete from game players list
-                for (Player player : current_players){
-                    if (player.socket_num == sock){
-                        current_players.remove(player);
-                        break;
-                    }
-                }
-                num_of_players_in_game--;
-
-                // Update values in arrays
-                is_slot_empty[index] = true;
-                connected_clients[index] = 0;
+                // Marking client as disconnected
+                client.is_active = false;
                 num_of_connected_clients--;
                 printf("Client %d: Successfuly disconnected from server\n", sock);
-
 
                 // Finish client thread
                 printf("Client %d: End of thread\n", sock);
@@ -332,9 +291,9 @@ void client_service(int sock){
                 int key_num = data[4];
                 printf("Client %d: Send key %d to server\n", sock, key_num);
                 for (Player &player : current_players){
-                    if (player.socket_num == sock){
+                    if (player.sock == sock){
                         player.move_direction = key_num;
-                        printf("Client %d: New direction %d\n", player.socket_num, player.move_direction);
+                        printf("Client %d: New direction %d\n", player.sock, player.move_direction);
                     }
                 }
             }
@@ -354,12 +313,21 @@ void client_service(int sock){
     }
 }
 
+// manages deleting clients from list of clients and joining their threads
+void client_manager(){
+    // todo
+    // not sure if this is necessary
+    ;
+}
 
 void server_game_service(){
 
     Point bonus(rand()%N, rand()%M);
 
     while (true){
+
+        // Label for easy breaking game loop
+        new_game_loop:
 
         // While someone is in the game
         if (num_of_players_in_game > 0) {
@@ -397,30 +365,45 @@ void server_game_service(){
                     player.list_of_points.pop_back();
                 }
 
+                // If player doesn't leave board...
                 if (x >= 0 && x < N && y >= 0 && y < M){
                     player.list_of_points.push_front(Point(x, y));
                     for (Point &p : player.list_of_points){
                         board[p.x][p.y] = player.number;
                     }
                 }
+                // Player loses
                 else {
-                    // Player loses
-                    printf("Player %d lost\n", player.socket_num);
-                    write(player.socket_num, "L", 1024);
+
+                    printf("Player %d: Lost game by leaving board\n", player.sock);
+
+                    // Inform player about lost
+                    write(player.sock, "L", 1024);
+
+                    // Add loser's slot number to available player numbers
                     available_player_numbers.push(player.number);
+
+                    // Remove loser and decrease num_of_players_in_game
                     current_players.remove(player);
                     num_of_players_in_game--;
+
+                    // Print information if no more players in the game
                     if (num_of_players_in_game == 0){
-                        printf("Game thread ended\n");
-                        break;
+                        printf("No more players in the game\n");
                     }
+
+                    // Start new loop without deleted player
+                    goto new_game_loop;
                 }
+
+                // Collision check
+                // todo
             }
 
             // Apple bonus
             board[bonus.x][bonus.y] = 5;
 
-            // Send state of game
+            // Prepare message conataining state of board
             char msg[1024];
             msg[0] = 'B';
             for (int i=0; i<N; ++i) {
@@ -430,11 +413,12 @@ void server_game_service(){
                 }
             }
 
+            // Send state of game to all players
             for (Player &player : current_players) {
                 for (Point &p : player.list_of_points){
                     printf("x: %d\ty: %d\n", p.x, p.y);
                 }
-                write(player.socket_num, msg, 1024);
+                write(player.sock, msg, 1024);
             }
         }
 
