@@ -71,19 +71,31 @@ int server(){
             exit(-1);
         }
 
-        // Find clients to be joined and removed
-        std::list <Client> clients_to_be_joined_and_removed = {};
+        // Find inactive clients and join their thread
+        std::list<Client> clients_to_be_joined_and_removed = {};
         for (Client &c : list_of_clients){
             if (!c.is_active){
-                clients_to_be_joined_and_removed.push_front(c);
+                printf("Client %d: Client inactive and soon will be removed\n", c.sock);
+
+                // Join thread
+                if (c.client_thread.joinable()){
+                    c.client_thread.join();
+                    printf("Client %d: Thread successfully joined\n", c.sock);
+                }
+                else {
+                    printf("Client %d: Thread already joined no idea why\n", c.sock);
+                }
+
+                // Add client to the list of clients to be removed
+                clients_to_be_joined_and_removed.emplace_back(c.sock);
             }
         }
+        printf("Number of clients to be deleted: %zu\n", clients_to_be_joined_and_removed.size());
 
-        // Join thread and remove inactive players
+        // Remove inactive players
         for (Client &c : clients_to_be_joined_and_removed){
-            c.client_thread.join();
+            list_of_clients.remove(c);
             printf("Client %d: Successfully removed from client list\n", c.sock);
-            list_of_clients.remove(Client(c.sock));
         }
 
         // Print client's ip address and port number
@@ -118,7 +130,7 @@ void client_service(Client &client){
     // Read 0 bytes - client disconnects
     else if (num_read_bytes == 0){
 
-        printf("Client %d disconnecting\n", sock);
+        printf("Client %d: Disconnecting\n", sock);
 
         // Close the connection
         int error = shutdown(sock, SHUT_RDWR);
@@ -179,7 +191,7 @@ void client_service(Client &client){
         // Read 0 bytes - client disconnects
         else if (num_read_bytes == 0){
 
-            printf("Client %d disconnecting\n", sock);
+            printf("Client %d: Disconnecting\n", sock);
 
             // Close the connection
             int error = shutdown(sock, SHUT_RDWR);
@@ -258,7 +270,7 @@ void client_service(Client &client){
                     }
                 }
 
-                printf("Client %d disconnecting\n", sock);
+                printf("Client %d: Disconnecting\n", sock);
 
                 // Close the connection
                 int error = shutdown(sock, SHUT_RDWR);
@@ -290,8 +302,14 @@ void client_service(Client &client){
                 printf("Client %d: Send key %d to server\n", sock, key_num);
                 for (Player &player : current_players){
                     if (player.sock == sock){
-                        player.move_direction = key_num;
-                        printf("Client %d: New direction %d\n", player.sock, player.move_direction);
+                        if ((player.move_direction < 2 && key_num > 1) || (player.move_direction > 1 && key_num < 2)){
+                            player.move_direction = key_num;
+                            printf("Client %d: New direction %d\n", player.sock, player.move_direction);
+                            break;
+                        }
+                        else {
+                            printf("Client %d: Wrong new direction - declined\n", player.sock);
+                        }
                     }
                 }
             }
