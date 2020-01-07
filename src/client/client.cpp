@@ -286,7 +286,7 @@ void game(sf::RenderWindow &window, int sock){
 
     // If not set - player lost and will leave main game loop
     is_in_game = true;
-f
+
     // Main game loop
     while (window.isOpen() && is_in_game)
     {

@@ -7,8 +7,9 @@
 #include <thread>
 #include <list>
 #include <stack>
-#include "Player.h"
-#include "Client.h"
+#include "classes/Player.h"
+#include "classes/Client.h"
+#include "classes/Score.h"
 
 int server();
 void client_service(Client &client);

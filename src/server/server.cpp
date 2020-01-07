@@ -158,16 +158,13 @@ void client_service(Client &client){
 
     // Client sends their nickname
     if (data[0] == 'N'){
-        // todo
-        // add nickname to Client
-        char nickname[16];
         for (int i=0; i<16; i++){
-            nickname[i] = data[i+1];
-            if (nickname[i] == 0){
+            client.nickname[i] = data[i+1];
+            if (client.nickname[i] == 0){
                 break;
             }
         }
-        printf("Client %d: New nickname: %s\n", sock, nickname);
+        printf("Client %d: New nickname: %s\n", sock, client.nickname);
     }
 
     // Unknown first character
@@ -333,6 +330,10 @@ void client_service(Client &client){
 void server_game_service(){
 
     Point bonus(rand()%N, rand()%M);
+    std::list <Score> best_scores = {};
+    for (int i=0; i<3; i++){
+        best_scores.push_front(Score(0, ""));
+    }
 
     while (true){
 
@@ -406,6 +407,9 @@ void server_game_service(){
                     goto new_game_loop;
                 }
 
+                // Score check
+                // todo
+
                 // Collision check
                 // todo
             }
@@ -413,7 +417,7 @@ void server_game_service(){
             // Apple bonus
             board[bonus.x][bonus.y] = 5;
 
-            // Prepare message conataining state of board
+            // Prepare message conataining state of board and best scores
             char msg[1024];
             msg[0] = 'B';
             for (int i=0; i<N; ++i) {
@@ -422,6 +426,8 @@ void server_game_service(){
                     board[i][j] = 0;
                 }
             }
+            // add best scores to message
+            // todo
 
             // Send state of game to all players
             for (Player &player : current_players) {

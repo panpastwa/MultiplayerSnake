@@ -6,6 +6,7 @@ public:
     int number;
     int move_direction;
     int sock;
+
     std::list<Point> list_of_points;
     
     Player(int s, int id, int x, int y){

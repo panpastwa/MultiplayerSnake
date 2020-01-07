@@ -18,7 +18,7 @@ if(SFML_FOUND)
     message(STATUS "SFML_VERSION: ${SFML_VERSION}")
 endif()
 
-add_executable(ServerApp src/server/main.cpp src/server/server.cpp src/server/server.h src/server/Player.h src/server/Point.h)
+add_executable(ServerApp src/server/main.cpp src/server/server.cpp src/server/server.h src/server/classes/Player.h src/server/classes/Point.h src/server/classes/Score.h)
 target_link_libraries(ServerApp sfml-graphics sfml-window sfml-system pthread)
 
 add_executable(ClientApp src/client/main.cpp src/client/client.cpp src/client/client.h)
