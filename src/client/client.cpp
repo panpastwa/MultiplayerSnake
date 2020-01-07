@@ -283,10 +283,10 @@ void game(sf::RenderWindow &window, int sock){
 
     // Read initial board state and enable updating real-time
     std::thread game_updater(update_game_state, sock);
-    game_updater.detach();
 
+    // If not set - player lost and will leave main game loop
     is_in_game = true;
-
+f
     // Main game loop
     while (window.isOpen() && is_in_game)
     {
@@ -358,6 +358,9 @@ void game(sf::RenderWindow &window, int sock){
         window.draw(exit_text);
         window.display();
     }
+
+    // Join game updater since player lost
+    game_updater.join();
 }
 
 void score(sf::RenderWindow &window, int sock){
@@ -426,6 +429,11 @@ void update_game_state(int sock){
             printf("You lost\n");
             is_in_game = false;
             write(sock, "L", 1024);
+            for (int i=0; i<N; ++i) {
+                for (int j = 0; j < M; ++j) {
+                    board[i][j] = 0;
+                }
+            }
             return;
         }
 
