@@ -12,5 +12,4 @@
 
 int server();
 void client_service(Client &client);
-void client_manager();
 void server_game_service();

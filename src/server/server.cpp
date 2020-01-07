@@ -3,31 +3,26 @@
 // Number of currently connected clients to server
 int num_of_connected_clients = 0;
 
-// Array with socket numbers of connected clients and boolean array
-int connected_clients[16];
-bool is_slot_empty[16];
-std::thread client_threads[16];
-
+// List with connected clients
 std::list<Client> list_of_clients;
 
 // Board
 const int M = 30, N = 20;
 char board[N][M];
 
-// Players in game
+// Number of players in game
 int num_of_players_in_game = 0;
+
+// List with active players
 std::list<Player> current_players = {};
+
+// Stack with available slots (numbers) in the game
 std::stack<int> available_player_numbers;
 
 // Queue
 std::list<int> queue = {};
 
-int server()
-{
-    // Initializing values
-    for (int i=0; i<16; i++){
-        is_slot_empty[i] = true;
-    }
+int server(){
 
     // Create socket
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -60,7 +55,7 @@ int server()
     available_player_numbers.push(4);
 
     // Start server game thread
-    std::thread t(server_game_service);
+    std::thread game_thread(server_game_service);
 
     // Wait for clients
     while (num_of_connected_clients < 16){
@@ -76,32 +71,35 @@ int server()
             exit(-1);
         }
 
-        // Remove disconnected clients from the list_of_clients and join their thread
+        // Find clients to be joined and removed
+        std::list <Client> clients_to_be_joined_and_removed = {};
         for (Client &c : list_of_clients){
             if (!c.is_active){
-                c.client_thread.join();
-                printf("Client %d: Successfully removed from client list\n", c.sock);
-                list_of_clients.remove(Client(c.sock));
-                break;
-                // todo
-                // sigsegv
+                clients_to_be_joined_and_removed.push_front(c);
             }
+        }
+
+        // Join thread and remove inactive players
+        for (Client &c : clients_to_be_joined_and_removed){
+            c.client_thread.join();
+            printf("Client %d: Successfully removed from client list\n", c.sock);
+            list_of_clients.remove(Client(c.sock));
         }
 
         // Print client's ip address and port number
         printf("New client connected %s : %d\n", inet_ntoa(client_structure.sin_addr), ntohs(client_structure.sin_port));
 
         // Add new client to the list_of_clients and start their thread
-        list_of_clients.push_back(Client(client_socket));
+        list_of_clients.emplace_back(client_socket);
         list_of_clients.back().client_thread = std::thread(client_service, std::ref(list_of_clients.back()));
 
+        // Increase number of connected clients
         num_of_connected_clients++;
-
     }
 
     return 0;
-
 }
+
 
 void client_service(Client &client){
 
@@ -313,12 +311,6 @@ void client_service(Client &client){
     }
 }
 
-// manages deleting clients from list of clients and joining their threads
-void client_manager(){
-    // todo
-    // not sure if this is necessary
-    ;
-}
 
 void server_game_service(){
 
