@@ -114,6 +114,15 @@ void enter_nickname(sf::RenderWindow &window, int sock) {
 
                 }
 
+                // Backspace --> remove one character
+                else if (key == sf::Keyboard::Key::BackSpace){
+                    if (current_index_in_text > 1){
+                        int len = nick_text.getString().getSize();
+                        nick_text.setString(nick_text.getString().substring(0, len-1));
+                        current_index_in_text--;
+                    }
+                }
+
                 // Client accepts his nickname --> send it to a server
                 else if (key == sf::Keyboard::Key::Enter) {
 
