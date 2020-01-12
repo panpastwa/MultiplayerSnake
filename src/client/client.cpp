@@ -131,7 +131,7 @@ void enter_nickname(sf::RenderWindow &window, int sock) {
                     }
 
                     // Adding \0 char at the end
-                    for (int i=current_index_in_text; i<=18; i++){
+                    for (int i=current_index_in_text; i<17; i++){
                         text_to_send[i] = 0;
                     }
 
