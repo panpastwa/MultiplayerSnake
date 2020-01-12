@@ -228,7 +228,7 @@ void client_service(Client &client){
                 available_player_numbers.pop();
                 int starting_x = rand() % N;
                 int starting_y = rand() % M;
-                current_players.push_back(Player(sock, players_number, starting_x, starting_y));
+                current_players.push_back(Player(sock, players_number, starting_x, starting_y, client.nickname));
                 printf("Client %d: Joined the game\n", sock);
 
             } else {
@@ -398,17 +398,47 @@ void server_game_service(){
                     current_players.remove(player);
                     num_of_players_in_game--;
 
-                    // Print information if no more players in the game
+                    // If no more players in the game --> clear best scores
                     if (num_of_players_in_game == 0){
+                        // todo
+                        // does not stop game after all player left
                         printf("No more players in the game\n");
+                        best_scores.clear();
+                        for (int i=0; i<3; i++){
+                            best_scores.push_front(Score(0, ""));
+                        }
                     }
 
                     // Start new loop without deleted player
                     goto new_game_loop;
                 }
 
-                // Score check
-                // todo
+                // Best score check
+                bool is_already_in_best_scores = false;
+                for (Score &s : best_scores) {
+                    for (int i=0; i<16; i++) {
+                        if (s.nickname[i] != player.nickname[i]) {
+                            is_already_in_best_scores = false;
+                            break;
+                        }
+                        else if (player.nickname[i] == 0) {
+                            is_already_in_best_scores = true;
+                            break;
+                        }
+                    }
+                    if (is_already_in_best_scores){
+                        if (player.list_of_points.size() > s.score){
+                            s.score = player.list_of_points.size();
+                        }
+                        break;
+                    }
+                }
+
+                if (!is_already_in_best_scores && player.list_of_points.size() > best_scores.front().score){
+                    best_scores.pop_front();
+                    best_scores.push_front(Score(player.list_of_points.size(), player.nickname));
+                }
+                best_scores.sort();
 
                 // Collision check
                 // todo
@@ -426,8 +456,18 @@ void server_game_service(){
                     board[i][j] = 0;
                 }
             }
-            // add best scores to message
-            // todo
+
+            // Add scores to message
+            int index = 601;
+            for (Score &s : best_scores){
+                msg[index++] = s.score;
+                for (int i=0; i<16; i++){
+                    msg[index++] = s.nickname[i];
+                    if (s.nickname[i] == 0){
+                        break;
+                    }
+                }
+            }
 
             // Send state of game to all players
             for (Player &player : current_players) {

@@ -6,6 +6,11 @@ char board[N][M];
 int size_of_cell = 32;
 bool is_in_game;
 
+// Best scores
+int best_scores[3];
+char nicknames[3][16];
+
+
 int client()
 {
     // Create socket
@@ -262,13 +267,15 @@ void game(sf::RenderWindow &window, int sock){
     scoreboard_text.setPosition(1050.0f, 100.0f);
     scoreboard_text.setStyle(sf::Text::Bold);
 
-    // todo
-    // Add scoreboard
-    sf::Text exit_text("todo...", font);
-    exit_text.setCharacterSize(20);
-    exit_text.setFillColor(sf::Color::White);
-    exit_text.setPosition(1100.0f, 250.0f);
+    // Scorebaord record template
+    sf::Text score_text("", font);
+    score_text.setCharacterSize(20);
+    score_text.setFillColor(sf::Color::White);
 
+    for (int i=0; i<3; i++){
+        best_scores[i] = 0;
+        nicknames[i][0] = 0;
+    }
     // Set properties of cell
     sf::RectangleShape cell(sf::Vector2f(size_of_cell, size_of_cell));
     cell.setOutlineThickness(1.0f);
@@ -355,7 +362,16 @@ void game(sf::RenderWindow &window, int sock){
             }
         }
         window.draw(scoreboard_text);
-        window.draw(exit_text);
+        for (int i=0; i<3; i++){
+            if (best_scores[i]){
+                score_text.setPosition(1050.f, 400.0f - 50.0f * i);
+                score_text.setString((sf::String(std::to_string(best_scores[i]))));
+                window.draw(score_text);
+                score_text.setPosition(1100.0f, 400.0f - 50.0f * i);
+                score_text.setString(sf::String(nicknames[i]));
+                window.draw(score_text);
+            }
+        }
         window.display();
     }
 
@@ -416,9 +432,23 @@ void update_game_state(int sock){
 
         // Server sends board state
         if (data[0] == 'B'){
+
+            // Read board state
             for (int i=0; i<N; ++i) {
                 for (int j = 0; j < M; ++j) {
                     board[i][j] = data[i*M + j + 1];
+                }
+            }
+
+            // Read best scores
+            int index = 601;
+            for (int i=0; i<3; i++){
+                best_scores[i] = data[index++];
+                for (int j=0; j<16; j++){
+                    nicknames[i][j] = data[index++];
+                    if (nicknames[i][j] == 0){
+                        break;
+                    }
                 }
             }
             printf("Read new game state from server\n");
