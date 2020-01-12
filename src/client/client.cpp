@@ -10,9 +10,15 @@ bool is_in_game;
 int best_scores[3];
 char nicknames[3][16];
 
+// Font
+sf::Font font;
 
 int client()
 {
+
+    // Load a font
+    font.loadFromFile("data/UbuntuMono-RI.ttf");
+
     // Create socket
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == -1){
@@ -33,12 +39,15 @@ int client()
         exit(-1);
     }
 
+    // Render window
     int width = (M + 10)*size_of_cell;
     int height = N*size_of_cell;
     sf::RenderWindow window(sf::VideoMode(width, height), "Snake");
 
+    // Enter your nickname
     enter_nickname(window, sock);
 
+    // Client's main loop
     while (true){
         menu(window, sock);
         queue(window, sock);
@@ -49,10 +58,6 @@ int client()
 
 
 void enter_nickname(sf::RenderWindow &window, int sock) {
-
-    // Create and load font
-    sf::Font font;
-    font.loadFromFile("data/UbuntuMono-RI.ttf");
 
     // Create ENTER NICKNAME text
     sf::Text enter_nick_text("Enter your nickname", font);
@@ -148,10 +153,6 @@ void enter_nickname(sf::RenderWindow &window, int sock) {
 
 
 void menu(sf::RenderWindow &window, int sock){
-
-    // Create and load font
-    sf::Font font;
-    font.loadFromFile("data/UbuntuMono-RI.ttf");
 
     // Create START GAME text
     sf::Text start_text("Join game", font);
@@ -255,10 +256,6 @@ void queue(sf::RenderWindow &window, int sock){
 }
 
 void game(sf::RenderWindow &window, int sock){
-
-    // Create and load font
-    sf::Font font;
-    font.loadFromFile("data/UbuntuMono-RI.ttf");
 
     // Create SCOREBOARD text
     sf::Text scoreboard_text("Scoreboard", font);
