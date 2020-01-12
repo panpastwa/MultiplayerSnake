@@ -58,7 +58,13 @@ int server(){
     std::thread game_thread(server_game_service);
 
     // Wait for clients
-    while (num_of_connected_clients < 16){
+    while (true){
+
+        while (num_of_connected_clients > 16){
+            // todo
+            // cond variable instead of active waiting
+            ;
+        }
 
         struct sockaddr_in client_structure;
         socklen_t size_of_client_structure = sizeof(client_structure);
@@ -68,7 +74,8 @@ int server(){
         int client_socket = accept(server_socket, (sockaddr*)&client_structure, &size_of_client_structure);
         if (client_socket == -1){
             perror("Accept error");
-            exit(-1);
+            // Try to accept new clients again
+            continue;
         }
 
         // Find inactive clients and join their thread
