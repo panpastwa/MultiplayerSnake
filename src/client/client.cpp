@@ -1,9 +1,7 @@
 #include "client.h"
 
-// Size of board
-const int M = 30, N = 20;
+// Board
 char board[N][M];
-int size_of_cell = 32;
 bool is_in_game;
 
 // Best scores

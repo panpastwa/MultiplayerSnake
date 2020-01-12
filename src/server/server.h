@@ -9,6 +9,8 @@
 #include "classes/Player.h"
 #include "classes/Client.h"
 #include "classes/Score.h"
+#include "../board_parameters.h"
+
 
 int server();
 void client_service(Client &client);

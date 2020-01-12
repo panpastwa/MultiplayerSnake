@@ -7,7 +7,6 @@ int num_of_connected_clients = 0;
 std::list<Client> list_of_clients;
 
 // Board
-const int M = 30, N = 20;
 char board[N][M];
 
 // Number of players in game

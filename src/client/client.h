@@ -7,6 +7,7 @@
 #include <cstring>
 #include <thread>
 #include <string>
+#include "../board_parameters.h"
 
 int client();
 void send_key_to_server(sf::Keyboard::Key key, int server_sock);
