@@ -11,9 +11,8 @@ char nicknames[3][16];
 // Font
 sf::Font font;
 
-int client()
+int client(char *ip_addr, int port_num)
 {
-
     // Load a font
     font.loadFromFile("data/UbuntuMono-RI.ttf");
 
@@ -27,8 +26,8 @@ int client()
     // Create structure with server's port number and ip address
     struct sockaddr_in ip_address{};
     ip_address.sin_family = AF_INET;
-    ip_address.sin_port = htons(8888);
-    ip_address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    ip_address.sin_port = htons(port_num);
+    ip_address.sin_addr.s_addr = inet_addr(ip_addr);
 
     // Connect to server
     int error = connect(sock, (sockaddr*) &ip_address, sizeof(ip_address));

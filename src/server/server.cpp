@@ -21,7 +21,7 @@ std::stack<int> available_player_numbers;
 // Queue
 std::list<int> queue = {};
 
-int server(){
+int server(int port_num){
 
     // Create socket
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -31,7 +31,7 @@ int server(){
     }
 
     // Create structure for any clients with port number
-    struct sockaddr_in server_structure = {AF_INET, htons(8888), INADDR_ANY};
+    struct sockaddr_in server_structure = {AF_INET, htons(port_num), INADDR_ANY};
 
     // Binding server socket with sockaddr structure
     int error = bind(server_socket, (sockaddr*)&server_structure, sizeof(server_structure));
@@ -46,6 +46,7 @@ int server(){
         perror("Listen error");
         exit(-1);
     }
+    printf("Server is listening on port %d\n", port_num);
 
     // Push available player numbers onto stack
     available_player_numbers.push(1);
@@ -406,8 +407,6 @@ void server_game_service(){
 
                     // If no more players in the game --> clear best scores
                     if (num_of_players_in_game == 0){
-                        // todo
-                        // does not stop game after all player left
                         printf("No more players in the game\n");
                         best_scores.clear();
                         for (int i=0; i<3; i++){

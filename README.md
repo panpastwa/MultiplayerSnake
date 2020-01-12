@@ -11,8 +11,8 @@ cd build
 cmake ..
 make
 cd ..
-./build/ServerApp
-./build/ClientApp
+./build/ServerApp <port_num>
+./build/ClientApp <ip_addr> <port_num>
 ```
 It's important that you should run executable from project root directory.
 In other case there will be errors while loading assets from data folder.
