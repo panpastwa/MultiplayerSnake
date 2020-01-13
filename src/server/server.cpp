@@ -336,12 +336,19 @@ void client_service(Client &client){
 
 void server_game_service(){
 
+    // Set random position of fruit
     Point bonus(rand()%N, rand()%M);
+
+    // Initialize best scores
     std::list <Score> best_scores = {};
     for (int i=0; i<3; i++){
         best_scores.push_front(Score(0, ""));
     }
 
+    // List of players that lost and need to be removed from the game
+    std::list <Player> players_to_be_removed = {};
+
+    // Main loop of server game service
     while (true){
 
         // Label for easy breaking game loop
@@ -350,23 +357,24 @@ void server_game_service(){
         // While someone is in the game
         if (num_of_players_in_game > 0) {
 
+            // Calculate new front point for each player
             for (Player &player : current_players) {
 
                 Point point = player.list_of_points.front();
                 int x, y;
-                if (player.move_direction == 0){
+                if (player.move_direction == 0) {
                     // left
                     x = point.x;
                     y = point.y - 1;
-                } else if (player.move_direction == 1){
+                } else if (player.move_direction == 1) {
                     // right
                     x = point.x;
                     y = point.y + 1;
-                } else if (player.move_direction == 2){
+                } else if (player.move_direction == 2) {
                     // up
                     x = point.x - 1;
                     y = point.y;
-                } else if (player.move_direction == 3){
+                } else if (player.move_direction == 3) {
                     // down
                     x = point.x + 1;
                     y = point.y;
@@ -375,7 +383,75 @@ void server_game_service(){
                     exit(-1);
                 }
 
+                // Add new point in front of the snake
+                player.list_of_points.push_front(Point(x, y));
+
+            }
+
+            // Check collisions and leaving board
+            for (Player &player : current_players){
+
+                // Get front point of player
+                int x = player.list_of_points.front().x;
+                int y = player.list_of_points.front().y;
+
+                // Check if player leaves board
+                if (x < 0 || x >= N || y < 0 || y >= M){
+                    players_to_be_removed.push_front(Player(player.sock, player.number));
+                    continue;
+                }
+
+                // Check collision with other snakes
+                for (Player &p : current_players){
+                    // Only other players
+                    if (p.sock != player.sock){
+                        for (Point &point : p.list_of_points){
+                            // Check collision
+                            if (x == point.x && y == point.y){
+                                players_to_be_removed.push_front(Player(player.sock, player.number));
+                                goto leave_loop;
+                            }
+                        }
+                    }
+                }
+                // Label for easy leaving loop
+                leave_loop:;
+            }
+
+            // Remove players that lost
+            for (Player &player : players_to_be_removed){
+
+                // Inform player about lost
+                write(player.sock, "L", 1024);
+
+                // Add loser's slot number to available player numbers
+                available_player_numbers.push(player.number);
+
+                // Remove loser and decrease num_of_players_in_game
+                current_players.remove(player);
+                num_of_players_in_game--;
+
+                // If no more players in the game --> clear best scores
+                if (num_of_players_in_game == 0){
+                    printf("No more players in the game\n");
+                    best_scores.clear();
+                    for (int i=0; i<3; i++){
+                        best_scores.push_front(Score(0, ""));
+                    }
+                    goto new_game_loop;
+                }
+            }
+
+            for (Player &player : current_players){
+
+                // Get front point of player
+                int x = player.list_of_points.front().x;
+                int y = player.list_of_points.front().y;
+
+                // Check if player collects fruit
                 if (x == bonus.x && y == bonus.y){
+                    // todo
+                    // new fruit not inside snake
                     bonus.x = rand() % N;
                     bonus.y = rand() % M;
                 }
@@ -383,42 +459,12 @@ void server_game_service(){
                     player.list_of_points.pop_back();
                 }
 
-                // If player doesn't leave board...
-                if (x >= 0 && x < N && y >= 0 && y < M){
-                    player.list_of_points.push_front(Point(x, y));
-                    for (Point &p : player.list_of_points){
-                        board[p.x][p.y] = player.number;
-                    }
-                }
-                // Player loses
-                else {
-
-                    printf("Player %d: Lost game by leaving board\n", player.sock);
-
-                    // Inform player about lost
-                    write(player.sock, "L", 1024);
-
-                    // Add loser's slot number to available player numbers
-                    available_player_numbers.push(player.number);
-
-                    // Remove loser and decrease num_of_players_in_game
-                    current_players.remove(player);
-                    num_of_players_in_game--;
-
-                    // If no more players in the game --> clear best scores
-                    if (num_of_players_in_game == 0){
-                        printf("No more players in the game\n");
-                        best_scores.clear();
-                        for (int i=0; i<3; i++){
-                            best_scores.push_front(Score(0, ""));
-                        }
-                    }
-
-                    // Start new loop without deleted player
-                    goto new_game_loop;
+                // Update board matrix
+                for (Point &p : player.list_of_points){
+                    board[p.x][p.y] = player.number;
                 }
 
-                // Best score check
+                // Best score check for players already in scoreboard
                 bool is_already_in_best_scores = false;
                 for (Score &s : best_scores) {
                     for (int i=0; i<16; i++) {
@@ -439,14 +485,12 @@ void server_game_service(){
                     }
                 }
 
+                // Best score check for players not yet in scoreboard
                 if (!is_already_in_best_scores && player.list_of_points.size() > best_scores.front().score){
                     best_scores.pop_front();
                     best_scores.push_front(Score(player.list_of_points.size(), player.nickname));
                 }
                 best_scores.sort();
-
-                // Collision check
-                // todo
             }
 
             // Apple bonus

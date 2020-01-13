@@ -22,6 +22,11 @@ public:
         }
     }
 
+    Player(int s, int id){
+        sock = s;
+        number = id;
+    }
+
     bool operator==(const Player &p){
         return sock == p.sock;
     }
