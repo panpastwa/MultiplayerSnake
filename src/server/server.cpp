@@ -14,12 +14,14 @@ int num_of_players_in_game = 0;
 
 // List with active players
 std::list<Player> current_players = {};
+std::mutex current_players_mutex;
 
 // Stack with available slots (numbers) in the game
 std::stack<int> available_player_numbers;
 
 // Queue
 std::list<int> queue = {};
+std::mutex queue_mutex;
 
 void server(int port_num){
 
@@ -222,10 +224,24 @@ void client_service(Client &client){
         // Client wants to join game
         if (data[0] == '1'){
 
-            printf("Client %d: Added to queue\n", sock);
+            printf("Client %d: Wants to join the game\n", sock);
 
             // Add to queue
+            queue_mutex.lock();
+            printf("Client %d: Added to queue\n", sock);
             queue.push_back(sock);
+            char msg[2];
+            msg[0] = 'Q';
+            msg[1] = '0' + queue.size();
+            queue_mutex.unlock();
+            int num_of_bytes = write(sock, msg, 2);
+            if (num_of_bytes == -1){
+                perror("Write error");
+                exit(-1);
+            }
+            if (num_of_bytes != 2){
+                printf("Wrong number of bytes send\n");
+            }
         }
 
         // Keyboard input (possibly from last game --> ignore
@@ -256,6 +272,7 @@ void client_service(Client &client){
             else if (num_read_bytes == 0){
 
                 // Delete from game players list
+                current_players_mutex.lock();
                 for (Player &player : current_players){
                     if (player.sock == sock){
 
@@ -267,6 +284,7 @@ void client_service(Client &client){
                         num_of_players_in_game--;
                     }
                 }
+                current_players_mutex.unlock();
 
                 printf("Client %d: Disconnecting\n", sock);
 
@@ -301,7 +319,10 @@ void client_service(Client &client){
                 for (Player &player : current_players){
                     if (player.sock == sock){
                         if ((player.move_direction < 2 && key_num > 1) || (player.move_direction > 1 && key_num < 2)){
+                            // Change direction
+                            current_players_mutex.lock();
                             player.move_direction = key_num;
+                            current_players_mutex.unlock();
                             printf("Client %d: New direction %d\n", player.sock, player.move_direction);
                             break;
                         }
@@ -351,6 +372,9 @@ void server_game_service(){
         // Let players in queue join game if there are available slots
         while (num_of_players_in_game < 4 && !queue.empty()){
 
+            // Lock queue
+            queue_mutex.lock();
+
             // Get player from front of the list
             int new_player_sock = queue.front();
             printf("Client %d: Joining game\n", new_player_sock);
@@ -374,6 +398,12 @@ void server_game_service(){
             // Delete front player
             queue.pop_front();
 
+            // Unlock queue
+            queue_mutex.unlock();
+
+            // Lock players_mutex
+            current_players_mutex.lock();
+
             // Add new player to the game
             num_of_players_in_game++;
             int players_number = available_player_numbers.top();
@@ -387,13 +417,19 @@ void server_game_service(){
             for (Client &c : list_of_clients){
                 if (c.sock == new_player_sock){
                     current_players.emplace_back(new_player_sock, players_number, starting_x, starting_y, c.nickname);
+                    printf("Client %d: Successfully joined the game\n", new_player_sock);
                 }
             }
-            printf("Client %d: Successfully joined the game\n", new_player_sock);
+
+            // Unlock players_mutex
+            current_players_mutex.unlock();
         }
 
         // While someone is in the game
         if (num_of_players_in_game > 0) {
+
+            // Lock players_mutex
+            current_players_mutex.lock();
 
             // Calculate new front point for each player
             for (Player &player : current_players) {
@@ -486,6 +522,7 @@ void server_game_service(){
                     for (int i=0; i<3; i++){
                         best_scores.push_front(Score(0, ""));
                     }
+                    current_players_mutex.unlock();
                     goto new_game_loop;
                 }
             }
@@ -577,6 +614,23 @@ void server_game_service(){
                     printf("Wrong number of bytes send\n");
                 }
             }
+
+            // Send state of game to all clients in queue
+            queue_mutex.lock();
+            for (int c : queue){
+                int num_of_bytes = write(c, msg, index);
+                if (num_of_bytes == -1){
+                    perror("Write error");
+                    exit(-1);
+                }
+                if (num_of_bytes != index){
+                    printf("Wrong number of bytes send\n");
+                }
+            }
+            queue_mutex.unlock();
+
+            // Unlock players_mutex
+            current_players_mutex.unlock();
         }
 
         else {
@@ -585,7 +639,7 @@ void server_game_service(){
             ;
         }
 
-        usleep(1300000);
+        usleep(300000);
     }
 
 }

@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <thread>
+#include <mutex>
 #include <list>
 #include <stack>
 #include "classes/Player.h"

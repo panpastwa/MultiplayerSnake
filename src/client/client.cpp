@@ -3,6 +3,7 @@
 // Board
 char board[N][M];
 bool is_in_game;
+std::mutex board_mutex;
 
 // Best scores
 int best_scores[3];
@@ -13,6 +14,7 @@ sf::Font font;
 
 // Position in queue
 char queue_position = 0;
+std::mutex queue_position_mutex;
 
 
 void client(char *ip_addr, int port_num)
@@ -280,6 +282,7 @@ void queue(sf::RenderWindow &window, int sock){
     }
 
     if (queue_position == '0'){
+        printf("Leaving queue\n");
         return;
     }
 
@@ -310,7 +313,7 @@ void queue(sf::RenderWindow &window, int sock){
     fruit.setTexture(fruit_texture);
 
     // Main game loop
-    while (window.isOpen() && queue_position != '0')
+    while (window.isOpen())
     {
         sf::Event event;
         while (window.pollEvent(event))
@@ -327,10 +330,20 @@ void queue(sf::RenderWindow &window, int sock){
             }
         }
 
-        position_number_text.setString(queue_position);
+        // Check current position
+        queue_position_mutex.lock();
+        if (queue_position == '0') {
+            printf("Leaving queue\n");
+            queue_position_mutex.unlock();
+            return;
+        } else {
+            position_number_text.setString(queue_position);
+        }
+        queue_position_mutex.unlock();
 
         // Drawing
         window.clear();
+        board_mutex.lock();
         for (int i=0; i<N; ++i){
             for (int j=0; j<M; ++j) {
                 if (board[i][j] == 0) {
@@ -362,10 +375,12 @@ void queue(sf::RenderWindow &window, int sock){
                 }
             }
         }
+        board_mutex.unlock();
         window.draw(position_in_queue_text);
         window.draw(position_number_text);
         window.display();
     }
+    printf("Leaving queue\n");
 }
 
 void game(sf::RenderWindow &window, int sock){
@@ -410,6 +425,7 @@ void game(sf::RenderWindow &window, int sock){
         {
             // Close window and close connection
             if (event.type == sf::Event::Closed){
+                printf("Window closed\n");
                 window.close();
                 int error = shutdown(sock, SHUT_RDWR);
                 if (error == -1){
@@ -438,6 +454,7 @@ void game(sf::RenderWindow &window, int sock){
 
         // Drawing
         window.clear();
+        board_mutex.lock();
         for (int i=0; i<N; ++i){
             for (int j=0; j<M; ++j) {
                 if (board[i][j] == 0) {
@@ -469,7 +486,6 @@ void game(sf::RenderWindow &window, int sock){
                 }
             }
         }
-        window.draw(scoreboard_text);
         for (int i=0; i<3; i++){
             if (best_scores[i]){
                 score_text.setPosition(1050.f, 400.0f - 50.0f * i);
@@ -480,6 +496,8 @@ void game(sf::RenderWindow &window, int sock){
                 window.draw(score_text);
             }
         }
+        board_mutex.unlock();
+        window.draw(scoreboard_text);
         window.display();
     }
 }
@@ -530,6 +548,9 @@ void update_game_state(int sock){
             // Server sends board state
             if (data[num_of_bytes_processed] == 'B'){
 
+                // Lock board_mutex
+                board_mutex.lock();
+
                 // Read board state
                 for (int i=0; i<N; ++i) {
                     for (int j = 0; j < M; ++j) {
@@ -547,6 +568,9 @@ void update_game_state(int sock){
                         }
                     }
                 }
+
+                // Unlock board_mutex
+                board_mutex.unlock();
                 num_of_bytes_processed++;
             }
 
