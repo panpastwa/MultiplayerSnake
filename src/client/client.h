@@ -15,5 +15,4 @@ void enter_nickname(sf::RenderWindow &window, int sock);
 void menu(sf::RenderWindow &window, int sock);
 void queue(sf::RenderWindow &window, int sock);
 void game(sf::RenderWindow &window, int sock);
-void score(sf::RenderWindow &window, int sock);
 void update_game_state(int sock);

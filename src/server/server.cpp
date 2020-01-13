@@ -227,6 +227,17 @@ void client_service(Client &client){
             // If there is enough space for new player --> join game
             if (num_of_players_in_game < 4){
 
+                // Send information that there is a slot available
+                int num_of_bytes = write(sock, "Q0", 2);
+                if (num_of_bytes == -1){
+                    perror("Write error");
+                    exit(-1);
+                }
+                if (num_of_bytes < 2){
+                    printf("Not enough bytes sent\n");
+                    exit(-1);
+                }
+
                 // Add new player to the game
                 num_of_players_in_game++;
                 int players_number = available_player_numbers.top();
@@ -236,11 +247,34 @@ void client_service(Client &client){
                 current_players.push_back(Player(sock, players_number, starting_x, starting_y, client.nickname));
                 printf("Client %d: Joined the game\n", sock);
 
-            } else {
+            }
+            else {
+                // Send position in queue
+                char msg[2];
+                msg[0] = 'Q';
+                msg[1] = queue.size() + '0';
+                int num_of_bytes = write(sock, msg, 2);
+                if (num_of_bytes == -1){
+                    perror("Write error");
+                    exit(-1);
+                }
+                if (num_of_bytes < 2){
+                    printf("Not enough bytes sent\n");
+                    exit(-1);
+                }
 
                 // Add to queue
                 queue.push_back(sock);
+
+                // todo
+                // cond wait for player lose
             }
+        }
+
+        // Keyboard input (possibly from last game --> ignore
+        else if (data[0] == 'K'){
+            printf("Client %d: Keyboard input from last game\n", sock);
+            continue;
         }
 
         // Unknown first character
@@ -267,8 +301,13 @@ void client_service(Client &client){
                 // Delete from game players list
                 for (Player &player : current_players){
                     if (player.sock == sock){
+
+                        // Add loser's slot number to available player numbers
+                        available_player_numbers.push(player.number);
+
+                        // Remove loser and decrease num_of_players_in_game
                         current_players.remove(player);
-                        break;
+                        num_of_players_in_game--;
                     }
                 }
 
@@ -385,6 +424,9 @@ void server_game_service(){
                 player.list_of_points.push_front(Point(x, y));
 
             }
+
+            // Clear list of players to be removed
+            players_to_be_removed.clear();
 
             // Check collisions and leaving board
             for (Player &player : current_players){
@@ -531,7 +573,7 @@ void server_game_service(){
             ;
         }
 
-        usleep(300000);
+        usleep(1300000);
     }
 
 }

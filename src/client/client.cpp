@@ -11,6 +11,10 @@ char nicknames[3][16];
 // Font
 sf::Font font;
 
+// Position in queue
+char queue_position = 0;
+
+
 void client(char *ip_addr, int port_num)
 {
     // Load a font
@@ -47,9 +51,14 @@ void client(char *ip_addr, int port_num)
     // Client's main loop
     while (true){
         menu(window, sock);
+
+        // Read initial board state and enable updating real-time
+        std::thread game_updater(update_game_state, sock);
+
         queue(window, sock);
         game(window, sock);
-        score(window, sock);
+
+        game_updater.join();
     }
 }
 
@@ -256,9 +265,99 @@ void menu(sf::RenderWindow &window, int sock){
 }
 
 void queue(sf::RenderWindow &window, int sock){
-    // todo
-    // implement
-    ;
+
+    while (queue_position == 0){
+        // todo
+        // remove active waiting
+    }
+
+    if (queue_position == '0'){
+        return;
+    }
+
+    // Create POSITION IN QUEUE text
+    sf::Text position_in_queue_text("Position in queue:", font);
+    position_in_queue_text.setCharacterSize(25);
+    position_in_queue_text.setFillColor(sf::Color::White);
+    position_in_queue_text.setPosition(1000.0f, 100.0f);
+    position_in_queue_text.setStyle(sf::Text::Bold);
+
+    // Create POSITION NUMBER text
+    sf::Text position_number_text(queue_position, font);
+    position_number_text.setCharacterSize(70);
+    position_number_text.setFillColor(sf::Color::White);
+    position_number_text.setPosition(1080.0f, 170.0f);
+    position_number_text.setStyle(sf::Text::Bold);
+
+    // Set properties of cell
+    sf::RectangleShape cell(sf::Vector2f(size_of_cell, size_of_cell));
+    cell.setOutlineThickness(1.0f);
+    cell.setOutlineColor(sf::Color::White);
+
+    // Create a fruit
+    sf::Sprite fruit;
+    sf::Texture fruit_texture;
+    fruit.setColor(sf::Color::White);
+    fruit_texture.loadFromFile("data/fruit.png");
+    fruit.setTexture(fruit_texture);
+
+    // Main game loop
+    while (window.isOpen() && queue_position != '0')
+    {
+        sf::Event event;
+        while (window.pollEvent(event))
+        {
+            // Close window and close connection
+            if (event.type == sf::Event::Closed){
+                window.close();
+                int error = shutdown(sock, SHUT_RDWR);
+                if (error == -1){
+                    perror("Shutdown error");
+                    exit(-1);
+                }
+                exit(0);
+            }
+        }
+
+        position_number_text.setString(queue_position);
+
+        // Drawing
+        window.clear();
+        for (int i=0; i<N; ++i){
+            for (int j=0; j<M; ++j) {
+                if (board[i][j] == 0) {
+                    cell.setFillColor(sf::Color::Black);
+                    cell.setPosition(size_of_cell * j, size_of_cell * i);
+                    window.draw(cell);
+                } else if (board[i][j] == 1) {
+                    cell.setFillColor(sf::Color::Magenta);
+                    cell.setPosition(size_of_cell * j, size_of_cell * i);
+                    window.draw(cell);
+                } else if (board[i][j] == 2) {
+                    cell.setFillColor(sf::Color::Blue);
+                    cell.setPosition(size_of_cell * j, size_of_cell * i);
+                    window.draw(cell);
+                } else if (board[i][j] == 3) {
+                    cell.setFillColor(sf::Color::Green);
+                    cell.setPosition(size_of_cell * j, size_of_cell * i);
+                    window.draw(cell);
+                } else if (board[i][j] == 4) {
+                    cell.setFillColor(sf::Color::Yellow);
+                    cell.setPosition(size_of_cell * j, size_of_cell * i);
+                    window.draw(cell);
+                } else if (board[i][j] == 5) {
+                    fruit.setPosition(size_of_cell * j+1, size_of_cell * i+1);
+                    window.draw(fruit);
+                } else {
+                    printf("Unknown board matrix value: %d\n", board[i][j]);
+                    exit(-1);
+                }
+            }
+        }
+        window.draw(position_in_queue_text);
+        window.draw(position_number_text);
+        window.display();
+    }
 }
 
 void game(sf::RenderWindow &window, int sock){
@@ -279,6 +378,7 @@ void game(sf::RenderWindow &window, int sock){
         best_scores[i] = 0;
         nicknames[i][0] = 0;
     }
+
     // Set properties of cell
     sf::RectangleShape cell(sf::Vector2f(size_of_cell, size_of_cell));
     cell.setOutlineThickness(1.0f);
@@ -290,9 +390,6 @@ void game(sf::RenderWindow &window, int sock){
     fruit.setColor(sf::Color::White);
     fruit_texture.loadFromFile("data/fruit.png");
     fruit.setTexture(fruit_texture);
-
-    // Read initial board state and enable updating real-time
-    std::thread game_updater(update_game_state, sock);
 
     // If not set - player lost and will leave main game loop
     is_in_game = true;
@@ -377,16 +474,8 @@ void game(sf::RenderWindow &window, int sock){
         }
         window.display();
     }
-
-    // Join game updater since player lost
-    game_updater.join();
 }
 
-void score(sf::RenderWindow &window, int sock){
-    // todo
-    // implement
-    ;
-}
 
 void send_key_to_server(sf::Keyboard::Key key, int server_sock){
     printf("Key %d pressed\n", key-71);
@@ -426,13 +515,6 @@ void update_game_state(int sock){
             exit(0);
         }
 
-        // Check if message has correct size for program purposes
-        else if (num_read_bytes != 1024){
-            printf("Message does not have correct size %d\n", num_read_bytes);
-            write(1, data, num_read_bytes);
-            exit(-1);
-        }
-
         // Server sends board state
         if (data[0] == 'B'){
 
@@ -467,7 +549,21 @@ void update_game_state(int sock){
                     board[i][j] = 0;
                 }
             }
+            queue_position = 0;
             return;
+        }
+
+        // Server sends update about queue position
+        else if (data[0] == 'Q'){
+            if (num_read_bytes == 2 && data[1] >= '0' && data[1] <= '9'){
+                queue_position = data[1];
+            }
+            else {
+                printf("Unknown message from server:\n");
+                write(1, data, num_read_bytes);
+                printf("Disconnecting\n");
+                exit(0);
+            }
         }
 
         // Unknown first character
