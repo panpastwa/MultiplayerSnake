@@ -50,14 +50,19 @@ void client(char *ip_addr, int port_num)
 
     // Client's main loop
     while (true){
+        printf("Enter menu\n");
         menu(window, sock);
 
         // Read initial board state and enable updating real-time
+        printf("Start game_updater thread\n");
         std::thread game_updater(update_game_state, sock);
 
+        printf("Enter queue\n");
         queue(window, sock);
+        printf("Enter game\n");
         game(window, sock);
 
+        printf("Join game_updater\n");
         game_updater.join();
     }
 }
@@ -265,6 +270,9 @@ void menu(sf::RenderWindow &window, int sock){
 }
 
 void queue(sf::RenderWindow &window, int sock){
+
+    window.clear();
+    window.display();
 
     while (queue_position == 0){
         // todo
@@ -515,62 +523,65 @@ void update_game_state(int sock){
             exit(0);
         }
 
-        // Server sends board state
-        if (data[0] == 'B'){
+        // Process whole message from server
+        int num_of_bytes_processed = 0;
+        while (num_of_bytes_processed < num_read_bytes){
 
-            // Read board state
-            for (int i=0; i<N; ++i) {
-                for (int j = 0; j < M; ++j) {
-                    board[i][j] = data[i*M + j + 1];
-                }
-            }
+            // Server sends board state
+            if (data[num_of_bytes_processed] == 'B'){
 
-            // Read best scores
-            int index = 601;
-            for (int i=0; i<3; i++){
-                best_scores[i] = data[index++];
-                for (int j=0; j<16; j++){
-                    nicknames[i][j] = data[index++];
-                    if (nicknames[i][j] == 0){
-                        break;
+                // Read board state
+                for (int i=0; i<N; ++i) {
+                    for (int j = 0; j < M; ++j) {
+                        board[i][j] = data[++num_of_bytes_processed];
                     }
                 }
-            }
-            printf("Read new game state from server\n");
-        }
 
-        // Server sends information about a lose --> Reply and go back to menu
-        else if (data[0] == 'L'){
-            printf("You lost\n");
-            is_in_game = false;
-            write(sock, "L", 1024);
-            for (int i=0; i<N; ++i) {
-                for (int j = 0; j < M; ++j) {
-                    board[i][j] = 0;
+                // Read best scores
+                for (int i=0; i<3; i++){
+                    best_scores[i] = data[++num_of_bytes_processed];
+                    for (int j=0; j<16; j++){
+                        nicknames[i][j] = data[++num_of_bytes_processed];
+                        if (nicknames[i][j] == 0){
+                            break;
+                        }
+                    }
+                }
+                num_of_bytes_processed++;
+            }
+
+            // Server sends information about a lose --> Reply and go back to menu
+            else if (data[num_of_bytes_processed] == 'L'){
+                printf("You lost\n");
+                is_in_game = false;
+                write(sock, "L", 1024);
+                for (int i=0; i<N; ++i) {
+                    for (int j = 0; j < M; ++j) {
+                        board[i][j] = 0;
+                    }
+                }
+                queue_position = 0;
+                return;
+            }
+
+            // Server sends update about queue position
+            else if (data[num_of_bytes_processed] == 'Q'){
+                if (data[num_of_bytes_processed+1] >= '0' && data[num_of_bytes_processed+1] <= '9'){
+                    printf("Update queue position message from server\n");
+                    queue_position = data[++num_of_bytes_processed];
+                    num_of_bytes_processed++;
+                }
+                else {
+                    printf("Unknown error\n");
+                    exit(-1);
                 }
             }
-            queue_position = 0;
-            return;
-        }
 
-        // Server sends update about queue position
-        else if (data[0] == 'Q'){
-            if (num_read_bytes == 2 && data[1] >= '0' && data[1] <= '9'){
-                queue_position = data[1];
-            }
+            // Unknown first character
             else {
-                printf("Unknown message from server:\n");
-                write(1, data, num_read_bytes);
-                printf("Disconnecting\n");
-                exit(0);
+                printf("Client %d: Unknown action\n", sock);
+                exit(-1);
             }
-        }
-
-        // Unknown first character
-        else {
-            printf("Client %d: Unknown action\n", sock);
-            exit(-1);
         }
     }
-
 }

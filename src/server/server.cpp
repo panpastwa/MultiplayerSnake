@@ -222,53 +222,10 @@ void client_service(Client &client){
         // Client wants to join game
         if (data[0] == '1'){
 
-            printf("Client %d: Wants to join the game\n", sock);
+            printf("Client %d: Added to queue\n", sock);
 
-            // If there is enough space for new player --> join game
-            if (num_of_players_in_game < 4){
-
-                // Send information that there is a slot available
-                int num_of_bytes = write(sock, "Q0", 2);
-                if (num_of_bytes == -1){
-                    perror("Write error");
-                    exit(-1);
-                }
-                if (num_of_bytes < 2){
-                    printf("Not enough bytes sent\n");
-                    exit(-1);
-                }
-
-                // Add new player to the game
-                num_of_players_in_game++;
-                int players_number = available_player_numbers.top();
-                available_player_numbers.pop();
-                int starting_x = rand() % N;
-                int starting_y = rand() % M;
-                current_players.push_back(Player(sock, players_number, starting_x, starting_y, client.nickname));
-                printf("Client %d: Joined the game\n", sock);
-
-            }
-            else {
-                // Send position in queue
-                char msg[2];
-                msg[0] = 'Q';
-                msg[1] = queue.size() + '0';
-                int num_of_bytes = write(sock, msg, 2);
-                if (num_of_bytes == -1){
-                    perror("Write error");
-                    exit(-1);
-                }
-                if (num_of_bytes < 2){
-                    printf("Not enough bytes sent\n");
-                    exit(-1);
-                }
-
-                // Add to queue
-                queue.push_back(sock);
-
-                // todo
-                // cond wait for player lose
-            }
+            // Add to queue
+            queue.push_back(sock);
         }
 
         // Keyboard input (possibly from last game --> ignore
@@ -291,7 +248,7 @@ void client_service(Client &client){
 
             // Handle possible error
             if (num_read_bytes == -1){
-                perror("Read error in client's game loop");
+                perror("Read error");
                 exit(-1);
             }
 
@@ -391,6 +348,50 @@ void server_game_service(){
         // Label for easy breaking game loop
         new_game_loop:
 
+        // Let players in queue join game if there are available slots
+        while (num_of_players_in_game < 4 && !queue.empty()){
+
+            // Get player from front of the list
+            int new_player_sock = queue.front();
+            printf("Client %d: Joining game\n", new_player_sock);
+
+            // Inform all clients in queue about changes in queue
+            char msg[2];
+            msg[0] = 'Q';
+            int i = 0;
+            for (int sock : queue){
+                msg[1] = '0' + i++;
+                int num_of_bytes = write(sock, msg, 2);
+                if (num_of_bytes == -1){
+                    perror("Write error");
+                    exit(-1);
+                }
+                if (num_of_bytes != 2){
+                    printf("Wrong number of bytes send\n");
+                }
+            }
+
+            // Delete front player
+            queue.pop_front();
+
+            // Add new player to the game
+            num_of_players_in_game++;
+            int players_number = available_player_numbers.top();
+            available_player_numbers.pop();
+            // todo
+            // get better starting coords
+            int starting_x = rand() % N;
+            int starting_y = rand() % M;
+
+            // Find client's nickname
+            for (Client &c : list_of_clients){
+                if (c.sock == new_player_sock){
+                    current_players.emplace_back(new_player_sock, players_number, starting_x, starting_y, c.nickname);
+                }
+            }
+            printf("Client %d: Successfully joined the game\n", new_player_sock);
+        }
+
         // While someone is in the game
         if (num_of_players_in_game > 0) {
 
@@ -462,7 +463,14 @@ void server_game_service(){
             for (Player &player : players_to_be_removed){
 
                 // Inform player about lost
-                write(player.sock, "L", 1024);
+                int num_of_bytes = write(player.sock, "L", 1);
+                if (num_of_bytes == -1){
+                    perror("Write error");
+                    exit(-1);
+                }
+                if (num_of_bytes != 1){
+                    printf("Wrong number of bytes send\n");
+                }
 
                 // Add loser's slot number to available player numbers
                 available_player_numbers.push(player.number);
@@ -560,10 +568,14 @@ void server_game_service(){
 
             // Send state of game to all players
             for (Player &player : current_players) {
-                for (Point &p : player.list_of_points){
-                    printf("x: %d\ty: %d\n", p.x, p.y);
+                int num_of_bytes = write(player.sock, msg, index);
+                if (num_of_bytes == -1){
+                    perror("Write error");
+                    exit(-1);
                 }
-                write(player.sock, msg, 1024);
+                if (num_of_bytes != index){
+                    printf("Wrong number of bytes send\n");
+                }
             }
         }
 
