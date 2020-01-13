@@ -11,7 +11,7 @@ char nicknames[3][16];
 // Font
 sf::Font font;
 
-int client(char *ip_addr, int port_num)
+void client(char *ip_addr, int port_num)
 {
     // Load a font
     font.loadFromFile("data/UbuntuMono-RI.ttf");

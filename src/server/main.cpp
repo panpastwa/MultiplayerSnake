@@ -10,8 +10,10 @@ int main(int argc, char *argv[]){
                 exit(0);
             }
         }
-        // convert to int
+        // Convert port number string to int
         int port_num = atoi(argv[1]);
+
+        // Start server
         server(port_num);
     }
 
@@ -19,5 +21,4 @@ int main(int argc, char *argv[]){
     else {
         printf("Wrong number of arguments! Usage: ./ServerApp <port_num>\n");
     }
-    return 0;
 }

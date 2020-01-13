@@ -21,7 +21,7 @@ std::stack<int> available_player_numbers;
 // Queue
 std::list<int> queue = {};
 
-int server(int port_num){
+void server(int port_num){
 
     // Create socket
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -115,8 +115,6 @@ int server(int port_num){
         // Increase number of connected clients
         num_of_connected_clients++;
     }
-
-    return 0;
 }
 
 

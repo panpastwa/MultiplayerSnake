@@ -18,9 +18,6 @@ int main(int argc, char *argv[]){
 
         // Start client function
         client(argv[1], port_num);
-
-        printf("Client finishes successfully\n");
-        return 0;
     }
 
     // Wrong usage of program

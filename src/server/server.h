@@ -12,6 +12,6 @@
 #include "../board_parameters.h"
 
 
-int server(int port_num);
+void server(int port_num);
 void client_service(Client &client);
 void server_game_service();

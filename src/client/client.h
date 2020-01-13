@@ -9,7 +9,7 @@
 #include <string>
 #include "../board_parameters.h"
 
-int client(char *ip_addr, int port_num);
+void client(char *ip_addr, int port_num);
 void send_key_to_server(sf::Keyboard::Key key, int server_sock);
 void enter_nickname(sf::RenderWindow &window, int sock);
 void menu(sf::RenderWindow &window, int sock);
