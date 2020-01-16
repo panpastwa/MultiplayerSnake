@@ -175,25 +175,21 @@ void client_service(Client &client){
         return;
     }
 
-    // Check if message has correct size for program purposes
-    else if (num_read_bytes != 1024){
-        printf("Client %d: Message does not have correct size %d\n", sock, num_read_bytes);
-        write(1, data, num_read_bytes);
-        exit(-1);
-    }
-
     // Client sends their nickname
-    if (data[0] == 'N'){
+    if (num_read_bytes > 0 && data[0] == 'N'){
         for (int i=0; i<16; i++){
             client.nickname[i] = data[i+1];
             if (client.nickname[i] == 0){
+                if (i+2 != num_read_bytes){
+                    printf("Client %d: Unknown size of message with nickname\n", sock);
+                }
                 break;
             }
         }
         printf("Client %d: New nickname: %s\n", sock, client.nickname);
     }
 
-    // Unknown first character
+    // Unknown message
     else {
         printf("Client %d: Unknown action\n", sock);
         exit(-1);
@@ -217,19 +213,12 @@ void client_service(Client &client){
             return;
         }
 
-        // Check if message has correct size for program purposes
-        else if (num_read_bytes != 1024){
-            printf("Client %d: Message does not have correct size %d\n", sock, num_read_bytes);
-            write(1, data, num_read_bytes);
-            exit(-1);
-        }
-
         // Client wants to join game
-        if (data[0] == '1'){
+        if (num_read_bytes > 0 && data[0] == 'S'){
 
             printf("Client %d: Wants to join the game\n", sock);
 
-            // Add to queue
+            // Add player to game queue
             queue_mutex.lock();
             printf("Client %d: Added to queue\n", sock);
             queue.push_back(sock);
@@ -248,8 +237,8 @@ void client_service(Client &client){
         }
 
         // Keyboard input (possibly from last game --> ignore
-        else if (data[0] == 'K'){
-            printf("Client %d: Keyboard input from last game\n", sock);
+        else if (num_read_bytes > 0 && data[0] == 'K'){
+            printf("Client %d: Keyboard input from last game - ignore\n", sock);
             continue;
         }
 
@@ -293,16 +282,9 @@ void client_service(Client &client){
                 return;
             }
 
-            // Check if message has correct size for program purposes
-            else if (num_read_bytes != 1024){
-                printf("Client %d: Message does not have correct size %d\n", sock, num_read_bytes);
-                write(1, data, num_read_bytes);
-                exit(-1);
-            }
-
             // Client sends key to server
-            if (data[0] == 'K'){
-                int key_num = data[4];
+            if (num_read_bytes > 1 && data[0] == 'K' && data[1] >= 0 && data[1] < 4){
+                int key_num = data[1];
                 printf("Client %d: Send key %d to server\n", sock, key_num);
                 for (Player &player : current_players){
                     if (player.sock == sock){
@@ -322,7 +304,7 @@ void client_service(Client &client){
             }
 
             // Clients replies to message about losing --> Client lost and backs to menu
-            else if (data[0] == 'L'){
+            else if (num_read_bytes > 1 && data[0] == 'L'){
                 printf("Client %d: Knows about lost game and is back in menu\n", sock);
                 break;
             }

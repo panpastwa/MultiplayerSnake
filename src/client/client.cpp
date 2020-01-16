@@ -163,18 +163,15 @@ void enter_nickname(sf::RenderWindow &window, int sock) {
                     }
 
                     // Adding \0 char at the end
-                    for (int i=current_index_in_text; i<17; i++){
-                        text_to_send[i] = 0;
-                    }
-
+                    text_to_send[current_index_in_text] = 0;
                     // Send message to server
                     printf("Nick accepted: %s\n", text_to_send);
-                    int num_of_bytes = write(sock, text_to_send, 1024);
+                    int num_of_bytes = write(sock, text_to_send, current_index_in_text+1);
                     if (num_of_bytes == -1){
                         perror("Start game info send error");
                         exit(-1);
-                    } else if (num_of_bytes < 1024){
-                        printf("Too little bytes send\n");
+                    } else if (num_of_bytes != current_index_in_text+1){
+                        printf("Wrong number of bytes send\n");
                         exit(-1);
                     }
                     return;
@@ -252,12 +249,12 @@ void menu(sf::RenderWindow &window, int sock){
                     if (menu_option == 0){
 
                         // Send message to server
-                        int num_of_bytes = write(sock, "1", 1024);
+                        int num_of_bytes = write(sock, "S", 1);
                         if (num_of_bytes == -1){
                             perror("Start game info send error");
                             exit(-1);
-                        } else if (num_of_bytes < 1024){
-                            printf("Too little bytes send\n");
+                        } else if (num_of_bytes != 1){
+                            printf("Wrong number of bytes send\n");
                             exit(-1);
                         }
 
@@ -522,15 +519,12 @@ void game(sf::RenderWindow &window, int sock){
 
 void send_key_to_server(sf::Keyboard::Key key, int server_sock){
     printf("Key %d pressed\n", key-71);
-    char msg[1024] = "KEY:";
+    char msg[2];
 
     // adding '0' for clean printf
-    msg[4] = key-71;
-    msg[5] = '\n';
-    msg[6] = '\0';
+    msg[0] = 'K';
+    msg[1] = key-71;
     int num_of_bytes = write(server_sock, msg, sizeof(msg));
-    // todo
-    // check if server is connected and handle this error
     if (num_of_bytes == -1){
         perror("Send key to server error");
         exit(-1);
