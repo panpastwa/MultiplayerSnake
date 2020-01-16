@@ -378,10 +378,12 @@ void server_game_service(){
             num_of_players_in_game++;
             int players_number = available_player_numbers.top();
             available_player_numbers.pop();
-            // todo
-            // get better starting coords
             int starting_x = rand() % N;
             int starting_y = rand() % M;
+            while (board[starting_x][starting_y] != 0){
+                starting_x = rand() % N;
+                starting_y = rand() % M;
+            }
 
             // Find client's nickname
             for (Client &c : list_of_clients){
@@ -450,11 +452,21 @@ void server_game_service(){
 
                 // Check collision with other snakes
                 for (Player &p : current_players){
-                    // Only other players
+                    // For other players check all point
                     if (p.sock != player.sock){
                         for (Point &point : p.list_of_points){
                             // Check collision
                             if (x == point.x && y == point.y){
+                                players_to_be_removed.push_front(Player(player.sock, player.number));
+                                goto leave_loop;
+                            }
+                        }
+                    }
+                    // For yourself check only other points (without head)
+                    else {
+                        for (auto iterator = std::next(p.list_of_points.begin()); iterator != p.list_of_points.end(); ++iterator){
+                            // Check collision
+                            if (x == iterator->x && y == iterator->y){
                                 players_to_be_removed.push_front(Player(player.sock, player.number));
                                 goto leave_loop;
                             }
@@ -505,10 +517,11 @@ void server_game_service(){
 
                 // Check if player collects fruit
                 if (x == bonus.x && y == bonus.y){
-                    // todo
-                    // new fruit not inside snake
-                    bonus.x = rand() % N;
-                    bonus.y = rand() % M;
+                    do {
+                        bonus.x = rand() % N;
+                        bonus.y = rand() % M;
+                    } while (board[bonus.x][bonus.y] != 0);
+
                 }
                 else {
                     player.list_of_points.pop_back();
