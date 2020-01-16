@@ -13,7 +13,7 @@ char nicknames[3][16];
 sf::Font font;
 
 // Position in queue
-char queue_position = 0;
+char queue_position = ' ';
 std::mutex queue_position_mutex;
 
 
@@ -287,19 +287,6 @@ void menu(sf::RenderWindow &window, int sock){
 
 void queue(sf::RenderWindow &window, int sock){
 
-    window.clear();
-    window.display();
-
-    while (queue_position == 0){
-        // todo
-        // remove active waiting
-    }
-
-    if (queue_position == '0'){
-        printf("Leaving queue\n");
-        return;
-    }
-
     // Create POSITION IN QUEUE text
     sf::Text position_in_queue_text("Position in queue:", font);
     position_in_queue_text.setCharacterSize(25);
@@ -308,7 +295,13 @@ void queue(sf::RenderWindow &window, int sock){
     position_in_queue_text.setStyle(sf::Text::Bold);
 
     // Create POSITION NUMBER text
+    queue_position_mutex.lock();
+    if (queue_position == '0'){
+        queue_position_mutex.unlock();
+        return;
+    }
     sf::Text position_number_text(queue_position, font);
+    queue_position_mutex.unlock();
     position_number_text.setCharacterSize(70);
     position_number_text.setFillColor(sf::Color::White);
     position_number_text.setPosition(1080.0f, 170.0f);
@@ -589,13 +582,15 @@ void update_game_state(int sock){
             else if (data[num_of_bytes_processed] == 'L'){
                 printf("You lost\n");
                 is_in_game = false;
+                board_mutex.lock();
                 write(sock, "L", 1024);
                 for (int i=0; i<N; ++i) {
                     for (int j = 0; j < M; ++j) {
                         board[i][j] = 0;
                     }
                 }
-                queue_position = 0;
+                board_mutex.unlock();
+                queue_position = ' ';
                 return;
             }
 

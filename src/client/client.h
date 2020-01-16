@@ -7,6 +7,7 @@
 #include <cstring>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 #include <string>
 #include "../board_parameters.h"
 

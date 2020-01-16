@@ -2,8 +2,8 @@
 
 // Number of currently connected clients to server
 int num_of_connected_clients = 0;
-std::condition_variable slot_for_player_available;
-std::mutex slot_for_player_available_mutex;
+std::condition_variable slot_for_client_available;
+std::mutex slot_for_client_available_mutex;
 
 // List with connected clients
 std::list<Client> list_of_clients;
@@ -17,6 +17,7 @@ int num_of_players_in_game = 0;
 // List with active players
 std::list<Player> current_players = {};
 std::mutex current_players_mutex;
+std::condition_variable some_new_player_in_queue;
 
 // Stack with available slots (numbers) in the game
 std::stack<int> available_player_numbers;
@@ -64,11 +65,11 @@ void server(int port_num){
     // Wait for clients
     while (true){
 
-        while (num_of_connected_clients >= 1){
+        while (num_of_connected_clients >= 16){
             // Suspend thread and wait for signal (some client disconnecting)
             printf("Too many players - suspend accepting new clients thread\n");
-            std::unique_lock<std::mutex> lk(slot_for_player_available_mutex);
-            slot_for_player_available.wait(lk);
+            std::unique_lock<std::mutex> lk(slot_for_client_available_mutex);
+            slot_for_client_available.wait(lk);
             printf("Accepting new clients again\n");
         }
 
@@ -148,7 +149,7 @@ void disconnect_client(Client &client){
     printf("Client %d: Successfuly disconnected from server\n", client.sock);
 
     // Notify thread accpeting new connections about client disconnection
-    slot_for_player_available.notify_one();
+    slot_for_client_available.notify_one();
 
     // Finish client thread
     printf("Client %d: End of thread\n", client.sock);
@@ -226,6 +227,11 @@ void client_service(Client &client){
             msg[0] = 'Q';
             msg[1] = '0' + queue.size();
             queue_mutex.unlock();
+
+            // Notify and wake up server game service
+            some_new_player_in_queue.notify_one();
+
+            // Send information about inital position in game queue
             int num_of_bytes = write(sock, msg, 2);
             if (num_of_bytes == -1){
                 perror("Write error");
@@ -338,6 +344,20 @@ void server_game_service(){
 
         // Label for easy breaking game loop
         new_game_loop:
+
+        if (num_of_players_in_game == 0){
+            std::unique_lock<std::mutex> lk(queue_mutex);
+            if (queue.empty()){
+                printf("No players in the game and empty queue\n");
+
+                // Wait for some player to be added to queue
+                printf("SUSPEND SERVER GAME SERVIE\n");
+                some_new_player_in_queue.wait(lk);
+                printf("New player in queue\n");
+                printf("UNSUSPEND SERVER GAME SERVIE\n");
+            }
+            queue_mutex.unlock();
+        }
 
         // Let players in queue join game if there are available slots
         while (num_of_players_in_game < 4 && !queue.empty()){
@@ -614,12 +634,6 @@ void server_game_service(){
 
             // Unlock players_mutex
             current_players_mutex.unlock();
-        }
-
-        else {
-            // todo
-            // some conditional waiting for new player instead of active waiting
-            ;
         }
 
         usleep(300000);
