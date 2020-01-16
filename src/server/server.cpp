@@ -2,6 +2,8 @@
 
 // Number of currently connected clients to server
 int num_of_connected_clients = 0;
+std::condition_variable slot_for_player_available;
+std::mutex slot_for_player_available_mutex;
 
 // List with connected clients
 std::list<Client> list_of_clients;
@@ -62,10 +64,12 @@ void server(int port_num){
     // Wait for clients
     while (true){
 
-        while (num_of_connected_clients > 16){
-            // todo
-            // cond variable instead of active waiting
-            ;
+        while (num_of_connected_clients >= 1){
+            // Suspend thread and wait for signal (some client disconnecting)
+            printf("Too many players - suspend accepting new clients thread\n");
+            std::unique_lock<std::mutex> lk(slot_for_player_available_mutex);
+            slot_for_player_available.wait(lk);
+            printf("Accepting new clients again\n");
         }
 
         struct sockaddr_in client_structure;
@@ -116,7 +120,38 @@ void server(int port_num){
 
         // Increase number of connected clients
         num_of_connected_clients++;
+
+        // Welcome client
+        int num_of_bytes = write(client_socket, "Hi", 2);
+        if (num_of_bytes == -1) {
+            perror("Write error");
+            disconnect_client(list_of_clients.back());
+        }
     }
+}
+
+
+void disconnect_client(Client &client){
+
+    printf("Client %d: Disconnecting\n", client.sock);
+
+    // Close the connection
+    int error = shutdown(client.sock, SHUT_RDWR);
+    if (error == -1){
+        perror("Shutdown error");
+        exit(-1);
+    }
+
+    // Marking client as disconnected
+    client.is_active = false;
+    num_of_connected_clients--;
+    printf("Client %d: Successfuly disconnected from server\n", client.sock);
+
+    // Notify thread accpeting new connections about client disconnection
+    slot_for_player_available.notify_one();
+
+    // Finish client thread
+    printf("Client %d: End of thread\n", client.sock);
 }
 
 
@@ -136,23 +171,7 @@ void client_service(Client &client){
 
     // Read 0 bytes - client disconnects
     else if (num_read_bytes == 0){
-
-        printf("Client %d: Disconnecting\n", sock);
-
-        // Close the connection
-        int error = shutdown(sock, SHUT_RDWR);
-        if (error == -1){
-            perror("Shutdown error");
-            exit(-1);
-        }
-
-        // Marking client as disconnected
-        client.is_active = false;
-        num_of_connected_clients--;
-        printf("Client %d: Successfuly disconnected from server\n", sock);
-
-        // Finish client thread
-        printf("Client %d: End of thread\n", sock);
+        disconnect_client(client);
         return;
     }
 
@@ -194,23 +213,7 @@ void client_service(Client &client){
 
         // Read 0 bytes - client disconnects
         else if (num_read_bytes == 0){
-
-            printf("Client %d: Disconnecting\n", sock);
-
-            // Close the connection
-            int error = shutdown(sock, SHUT_RDWR);
-            if (error == -1){
-                perror("Shutdown error");
-                exit(-1);
-            }
-
-            // Marking client as disconnected
-            client.is_active = false;
-            num_of_connected_clients--;
-            printf("Client %d: Successfuly disconnected from server\n", sock);
-
-            // Finish client thread
-            printf("Client %d: End of thread\n", sock);
+            disconnect_client(client);
             return;
         }
 
@@ -286,22 +289,7 @@ void client_service(Client &client){
                 }
                 current_players_mutex.unlock();
 
-                printf("Client %d: Disconnecting\n", sock);
-
-                // Close the connection
-                int error = shutdown(sock, SHUT_RDWR);
-                if (error == -1){
-                    perror("Shutdown error");
-                    exit(-1);
-                }
-
-                // Marking client as disconnected
-                client.is_active = false;
-                num_of_connected_clients--;
-                printf("Client %d: Successfuly disconnected from server\n", sock);
-
-                // Finish client thread
-                printf("Client %d: End of thread\n", sock);
+                disconnect_client(client);
                 return;
             }
 

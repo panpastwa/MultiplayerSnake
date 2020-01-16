@@ -41,6 +41,23 @@ void client(char *ip_addr, int port_num)
         perror("Connect error");
         exit(-1);
     }
+    printf("Connection successful\n");
+
+    // Wait for welcome message
+    char data[16];
+    printf("Waiting for welcome message from server\n");
+    int num_of_bytes = read(sock, data, 16);
+    if (num_of_bytes == -1) {
+        perror("Read error");
+        exit(-1);
+    }
+    else if (num_of_bytes == 2 && data[0] == 'H' && data[1] == 'i'){
+        printf("Welcome message received\n");
+    }
+    else {
+        printf("Error during receiving welcome message from server\n");
+        exit(-1);
+    }
 
     // Render window
     int width = (M + 10)*size_of_cell;

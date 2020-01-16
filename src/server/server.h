@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 #include <list>
 #include <stack>
 #include "classes/Player.h"
@@ -16,3 +17,4 @@
 void server(int port_num);
 void client_service(Client &client);
 void server_game_service();
+void disconnect_client(Client &client);
