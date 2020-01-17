@@ -3,10 +3,10 @@
 // Number of currently connected clients to server
 int num_of_connected_clients = 0;
 std::condition_variable slot_for_client_available;
-std::mutex slot_for_client_available_mutex;
 
 // List with connected clients
 std::list<Client> list_of_clients;
+std::mutex clients_mutex;
 
 // Board
 char board[N][M];
@@ -22,7 +22,7 @@ std::condition_variable some_new_player_in_queue;
 // Stack with available slots (numbers) in the game
 std::stack<int> available_player_numbers;
 
-// Queue
+// Queue - list containing socket numbers of clients
 std::list<int> queue = {};
 std::mutex queue_mutex;
 
@@ -62,28 +62,33 @@ void server(int port_num){
     // Start server game thread
     std::thread game_thread(server_game_service);
 
-    // Wait for clients
+    // Accept new connections forever
     while (true){
 
+        // Accepting max 16 clients
         while (num_of_connected_clients >= 16){
             // Suspend thread and wait for signal (some client disconnecting)
             printf("Too many players - suspend accepting new clients thread\n");
-            std::unique_lock<std::mutex> lk(slot_for_client_available_mutex);
+            std::unique_lock<std::mutex> lk(clients_mutex);
             slot_for_client_available.wait(lk);
             printf("Accepting new clients again\n");
         }
 
+        // Structures for keeping info about new client
         struct sockaddr_in client_structure;
         socklen_t size_of_client_structure = sizeof(client_structure);
-        printf("Server is ready to accept a new connection\n");
 
         // Accept new client
+        printf("Server is ready to accept a new connection\n");
         int client_socket = accept(server_socket, (sockaddr*)&client_structure, &size_of_client_structure);
         if (client_socket == -1){
             perror("Accept error");
             // Try to accept new clients again
             continue;
         }
+
+        // Critical section for clients
+        clients_mutex.lock();
 
         // Find inactive clients and join their thread
         std::list<Client> clients_to_be_joined_and_removed = {};
@@ -104,7 +109,6 @@ void server(int port_num){
                 clients_to_be_joined_and_removed.emplace_back(c.sock);
             }
         }
-        printf("Number of clients to be deleted: %zu\n", clients_to_be_joined_and_removed.size());
 
         // Remove inactive players
         for (Client &c : clients_to_be_joined_and_removed){
@@ -128,6 +132,9 @@ void server(int port_num){
             perror("Write error");
             disconnect_client(list_of_clients.back());
         }
+
+        // Unlock
+        clients_mutex.unlock();
     }
 }
 
@@ -144,8 +151,10 @@ void disconnect_client(Client &client){
     }
 
     // Marking client as disconnected
+    clients_mutex.lock();
     client.is_active = false;
     num_of_connected_clients--;
+    clients_mutex.unlock();
     printf("Client %d: Successfuly disconnected from server\n", client.sock);
 
     // Notify thread accpeting new connections about client disconnection
@@ -167,7 +176,8 @@ void client_service(Client &client){
     // Handle possible error
     if (num_read_bytes == -1){
         perror("Read error in client's main loop");
-        exit(-1);
+        disconnect_client(client);
+        return;
     }
 
     // Read 0 bytes - client disconnects
@@ -193,7 +203,8 @@ void client_service(Client &client){
     // Unknown message
     else {
         printf("Client %d: Unknown action\n", sock);
-        exit(-1);
+        disconnect_client(client);
+        return;
     }
 
     // Client thread
@@ -205,7 +216,8 @@ void client_service(Client &client){
         // Handle possible error
         if (num_read_bytes == -1){
             perror("Read error in client's main loop");
-            exit(-1);
+            disconnect_client(client);
+            return;
         }
 
         // Read 0 bytes - client disconnects
@@ -235,10 +247,13 @@ void client_service(Client &client){
             int num_of_bytes = write(sock, msg, 2);
             if (num_of_bytes == -1){
                 perror("Write error");
-                exit(-1);
+                disconnect_client(client);
+                return;
             }
             if (num_of_bytes != 2){
                 printf("Wrong number of bytes send\n");
+                disconnect_client(client);
+                return;
             }
         }
 
@@ -251,7 +266,8 @@ void client_service(Client &client){
         // Unknown first character
         else {
             printf("Client %d: Unknown action\n", sock);
-            exit(-1);
+            disconnect_client(client);
+            return;
         }
 
         // Game loop
@@ -263,7 +279,8 @@ void client_service(Client &client){
             // Handle possible error
             if (num_read_bytes == -1){
                 perror("Read error");
-                exit(-1);
+                disconnect_client(client);
+                return;
             }
 
             // Read 0 bytes - client disconnects
@@ -271,15 +288,16 @@ void client_service(Client &client){
 
                 // Delete from game players list
                 current_players_mutex.lock();
-                for (Player &player : current_players){
-                    if (player.sock == sock){
+                for (Player &p : current_players){
+                    if (sock == p.sock){
 
                         // Add loser's slot number to available player numbers
-                        available_player_numbers.push(player.number);
+                        available_player_numbers.push(p.number);
 
                         // Remove loser and decrease num_of_players_in_game
-                        current_players.remove(player);
+                        current_players.remove(p);
                         num_of_players_in_game--;
+                        break;
                     }
                 }
                 current_players_mutex.unlock();
@@ -332,12 +350,9 @@ void server_game_service(){
 
     // Initialize best scores
     std::list <Score> best_scores = {};
-    for (int i=0; i<3; i++){
-        best_scores.push_front(Score(0, ""));
-    }
 
     // List of players that lost and need to be removed from the game
-    std::list <Player> players_to_be_removed = {};
+    std::list<Player> players_to_be_removed = {};
 
     // Main loop of server game service
     while (true){
@@ -346,9 +361,15 @@ void server_game_service(){
         new_game_loop:
 
         if (num_of_players_in_game == 0){
+
+            // Clear best scores
+            best_scores.clear();
+            for (int i=0; i<3; i++){
+                best_scores.push_front(Score(0, ""));
+            }
+
             std::unique_lock<std::mutex> lk(queue_mutex);
             if (queue.empty()){
-                printf("No players in the game and empty queue\n");
 
                 // Wait for some player to be added to queue
                 printf("SUSPEND SERVER GAME SERVIE\n");
@@ -417,11 +438,11 @@ void server_game_service(){
             current_players_mutex.unlock();
         }
 
+        // Lock players_mutex
+        current_players_mutex.lock();
+
         // While someone is in the game
         if (num_of_players_in_game > 0) {
-
-            // Lock players_mutex
-            current_players_mutex.lock();
 
             // Calculate new front point for each player
             for (Player &player : current_players) {
@@ -520,10 +541,6 @@ void server_game_service(){
                 // If no more players in the game --> clear best scores
                 if (num_of_players_in_game == 0){
                     printf("No more players in the game\n");
-                    best_scores.clear();
-                    for (int i=0; i<3; i++){
-                        best_scores.push_front(Score(0, ""));
-                    }
                     current_players_mutex.unlock();
                     goto new_game_loop;
                 }
@@ -631,10 +648,10 @@ void server_game_service(){
                 }
             }
             queue_mutex.unlock();
-
-            // Unlock players_mutex
-            current_players_mutex.unlock();
         }
+
+        // Unlock players_mutex
+        current_players_mutex.unlock();
 
         usleep(300000);
     }
