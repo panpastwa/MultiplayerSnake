@@ -350,7 +350,6 @@ void client_service(Client &client){
                     if (player.sock == sock){
                         if ((player.move_direction < 2 && key_num > 1) || (player.move_direction > 1 && key_num < 2)){
                             // Change direction
-                            current_players_mutex.lock();
                             player.move_direction = key_num;
                             break;
                         }

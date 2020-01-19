@@ -114,13 +114,15 @@ void enter_nickname(sf::RenderWindow &window, int sock) {
         while (window.pollEvent(event)) {
 
             // Close window and close connection
-            if (event.type == sf::Event::Closed) {
+            if (event.type == sf::Event::Closed){
+                printf("Window closed\n");
                 window.close();
                 int error = shutdown(sock, SHUT_RDWR);
-                if (error == -1) {
+                if (error == -1){
                     perror("Shutdown error");
                     exit(-1);
                 }
+                printf("Disconnected\n");
                 exit(0);
             }
 
@@ -215,13 +217,15 @@ void menu(sf::RenderWindow &window, int sock){
         while (window.pollEvent(event)) {
 
             // Close window and close connection
-            if (event.type == sf::Event::Closed) {
+            if (event.type == sf::Event::Closed){
+                printf("Window closed\n");
                 window.close();
                 int error = shutdown(sock, SHUT_RDWR);
                 if (error == -1){
                     perror("Shutdown error");
                     exit(-1);
                 }
+                printf("Disconnected\n");
                 exit(0);
             }
 
@@ -327,12 +331,14 @@ void queue(sf::RenderWindow &window, int sock){
         {
             // Close window and close connection
             if (event.type == sf::Event::Closed){
+                printf("Window closed\n");
                 window.close();
                 int error = shutdown(sock, SHUT_RDWR);
                 if (error == -1){
                     perror("Shutdown error");
                     exit(-1);
                 }
+                printf("Disconnected\n");
                 exit(0);
             }
         }
@@ -439,6 +445,7 @@ void game(sf::RenderWindow &window, int sock){
                     perror("Shutdown error");
                     exit(-1);
                 }
+                printf("Disconnected\n");
                 exit(0);
             }
 
