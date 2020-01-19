@@ -16,6 +16,13 @@ sf::Font font;
 char queue_position = ' ';
 std::mutex queue_position_mutex;
 
+// Thread for communication
+std::thread game_updater;
+
+// Used for properly exiting application and joining thread
+bool is_disconnecting = false;
+std::mutex disconnecting_mutex;
+
 
 void client(char *ip_addr, int port_num)
 {
@@ -74,7 +81,7 @@ void client(char *ip_addr, int port_num)
 
         // Read initial board state and enable updating real-time
         printf("Start game_updater thread\n");
-        std::thread game_updater(update_game_state, sock);
+        game_updater = std::thread(update_game_state, sock);
 
         printf("Enter queue\n");
         queue(window, sock);
@@ -331,14 +338,27 @@ void queue(sf::RenderWindow &window, int sock){
         {
             // Close window and close connection
             if (event.type == sf::Event::Closed){
-                printf("Window closed\n");
+
                 window.close();
+                printf("Window closed\n");
+
+                // Inform thread about exitting
+                disconnecting_mutex.lock();
+                is_disconnecting = true;
+                disconnecting_mutex.unlock();
+
                 int error = shutdown(sock, SHUT_RDWR);
                 if (error == -1){
                     perror("Shutdown error");
                     exit(-1);
                 }
                 printf("Disconnected\n");
+
+                if (game_updater.joinable()){
+                    game_updater.join();
+                    printf("Thread successfully joined\n");
+                }
+
                 exit(0);
             }
         }
@@ -438,14 +458,27 @@ void game(sf::RenderWindow &window, int sock){
         {
             // Close window and close connection
             if (event.type == sf::Event::Closed){
-                printf("Window closed\n");
+
                 window.close();
+                printf("Window closed\n");
+
+                // Inform thread about exitting
+                disconnecting_mutex.lock();
+                is_disconnecting = true;
+                disconnecting_mutex.unlock();
+
                 int error = shutdown(sock, SHUT_RDWR);
                 if (error == -1){
                     perror("Shutdown error");
                     exit(-1);
                 }
                 printf("Disconnected\n");
+
+                if (game_updater.joinable()){
+                    game_updater.join();
+                    printf("Thread successfully joined\n");
+                }
+
                 exit(0);
             }
 
@@ -536,6 +569,14 @@ void update_game_state(int sock){
         // Read message from server
         char data[1024];
         int num_read_bytes = read(sock, data, sizeof(data));
+
+        // Returning from thread in order to properly close application
+        disconnecting_mutex.lock();
+        if (is_disconnecting){
+            disconnecting_mutex.unlock();
+            return;
+        }
+        disconnecting_mutex.unlock();
 
         // Handle possible error
         if (num_read_bytes == -1){
