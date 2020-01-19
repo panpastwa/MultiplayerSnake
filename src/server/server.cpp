@@ -450,14 +450,21 @@ void server_game_service(){
             int i = 0;
             for (int sock : queue){
                 msg[1] = '0' + i++;
-                int num_of_bytes = write(sock, msg, 2);
-                if (num_of_bytes == -1){
-                    perror("Write error");
-                    exit(-1);
+                clients_mutex.lock();
+                for (Client &client : list_of_clients){
+                    if (client.sock == sock && client.is_active){
+                        int num_of_bytes = write(sock, msg, 2);
+                        if (num_of_bytes == -1){
+                            perror("Write error");
+                            exit(-1);
+                        }
+                        if (num_of_bytes != 2){
+                            printf("Wrong number of bytes send\n");
+                        }
+                        break;
+                    }
                 }
-                if (num_of_bytes != 2){
-                    printf("Wrong number of bytes send\n");
-                }
+                clients_mutex.unlock();
             }
 
             // Delete front player
@@ -689,17 +696,23 @@ void server_game_service(){
                 }
             }
 
-            // Send state of game to all clients in queue
+            // Send state of game to all ACTIVE clients in queue
             queue_mutex.lock();
             for (int c : queue){
-                int num_of_bytes = write(c, msg, index);
-                if (num_of_bytes == -1){
-                    perror("Write error");
-                    exit(-1);
+                clients_mutex.lock();
+                for (Client &client : list_of_clients){
+                    if (client.sock == c && client.is_active){
+                        int num_of_bytes = write(c, msg, index);
+                        if (num_of_bytes == -1){
+                            perror("Write error");
+                        }
+                        if (num_of_bytes != index){
+                            printf("Wrong number of bytes send\n");
+                        }
+                        break;
+                    }
                 }
-                if (num_of_bytes != index){
-                    printf("Wrong number of bytes send\n");
-                }
+                clients_mutex.unlock();
             }
             queue_mutex.unlock();
         }
@@ -707,7 +720,7 @@ void server_game_service(){
         // Unlock players_mutex
         current_players_mutex.unlock();
 
-        usleep(300000);
+        usleep(9300000);
     }
 
 }
