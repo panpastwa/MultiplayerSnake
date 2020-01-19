@@ -520,8 +520,6 @@ void game(sf::RenderWindow &window, int sock){
 void send_key_to_server(sf::Keyboard::Key key, int server_sock){
     printf("Key %d pressed\n", key-71);
     char msg[2];
-
-    // adding '0' for clean printf
     msg[0] = 'K';
     msg[1] = key-71;
     int num_of_bytes = write(server_sock, msg, sizeof(msg));
