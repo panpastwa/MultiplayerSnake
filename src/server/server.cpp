@@ -231,30 +231,39 @@ void client_service(Client &client){
 
             printf("Client %d: Wants to join the game\n", sock);
 
-            // Add player to game queue
+            // Lock queue
             queue_mutex.lock();
+
+            // Add player to game queue
             printf("Client %d: Added to queue\n", sock);
             queue.push_back(sock);
             char msg[2];
             msg[0] = 'Q';
             msg[1] = '0' + queue.size();
-            queue_mutex.unlock();
-
-            // Notify and wake up server game service
-            some_new_player_in_queue.notify_one();
 
             // Send information about inital position in game queue
             int num_of_bytes = write(sock, msg, 2);
             if (num_of_bytes == -1){
                 perror("Write error");
+                queue.pop_back();
+                queue_mutex.unlock();
                 disconnect_client(client);
                 return;
             }
             if (num_of_bytes != 2){
                 printf("Wrong number of bytes send\n");
+                queue.pop_back();
+                queue_mutex.unlock();
                 disconnect_client(client);
                 return;
             }
+
+            // Unlock queue
+            queue_mutex.unlock();
+
+            // Notify and wake up server game service
+            some_new_player_in_queue.notify_one();
+
         }
 
         // Keyboard input (possibly from last game --> ignore
@@ -279,12 +288,11 @@ void client_service(Client &client){
             // Handle possible error
             if (num_read_bytes == -1){
                 perror("Read error");
-                disconnect_client(client);
-                return;
-            }
 
-            // Read 0 bytes - client disconnects
-            else if (num_read_bytes == 0){
+                // Remove from queue
+                queue_mutex.lock();
+                queue.remove(sock);
+                queue_mutex.unlock();
 
                 // Delete from game players list
                 current_players_mutex.lock();
@@ -306,25 +314,49 @@ void client_service(Client &client){
                 return;
             }
 
-            // Client sends key to server
+            // Read 0 bytes - client disconnects
+            else if (num_read_bytes == 0){
+
+                // Remove from queue
+                queue_mutex.lock();
+                queue.remove(sock);
+                queue_mutex.unlock();
+
+                // Delete from game players list
+                current_players_mutex.lock();
+                for (Player &p : current_players){
+                    if (sock == p.sock){
+
+                        // Add loser's slot number to available player numbers
+                        available_player_numbers.push(p.number);
+
+                        // Remove loser and decrease num_of_players_in_game
+                        current_players.remove(p);
+                        num_of_players_in_game--;
+                        break;
+                    }
+                }
+                current_players_mutex.unlock();
+
+                disconnect_client(client);
+                return;
+            }
+
+            // Client sends new direction to server
             if (num_read_bytes > 1 && data[0] == 'K' && data[1] >= 0 && data[1] < 4){
                 int key_num = data[1];
-                printf("Client %d: Send key %d to server\n", sock, key_num);
+                current_players_mutex.lock();
                 for (Player &player : current_players){
                     if (player.sock == sock){
                         if ((player.move_direction < 2 && key_num > 1) || (player.move_direction > 1 && key_num < 2)){
                             // Change direction
                             current_players_mutex.lock();
                             player.move_direction = key_num;
-                            current_players_mutex.unlock();
-                            printf("Client %d: New direction %d\n", player.sock, player.move_direction);
                             break;
-                        }
-                        else {
-                            printf("Client %d: Wrong new direction - declined\n", player.sock);
                         }
                     }
                 }
+                current_players_mutex.unlock();
             }
 
             // Clients replies to message about losing --> Client lost and backs to menu
@@ -336,7 +368,30 @@ void client_service(Client &client){
             // Unknown first character
             else {
                 printf("Client %d: Unknown action\n", sock);
-                exit(-1);
+
+                // Remove from queue
+                queue_mutex.lock();
+                queue.remove(sock);
+                queue_mutex.unlock();
+
+                // Delete from game players list
+                current_players_mutex.lock();
+                for (Player &p : current_players){
+                    if (sock == p.sock){
+
+                        // Add loser's slot number to available player numbers
+                        available_player_numbers.push(p.number);
+
+                        // Remove loser and decrease num_of_players_in_game
+                        current_players.remove(p);
+                        num_of_players_in_game--;
+                        break;
+                    }
+                }
+                current_players_mutex.unlock();
+
+                disconnect_client(client);
+                return;
             }
         }
     }
