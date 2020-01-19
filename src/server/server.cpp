@@ -169,6 +169,10 @@ void client_service(Client &client){
 
     int sock = client.sock;
 
+    //------------------------------------
+    // NICKNAME
+    //------------------------------------
+
     // Read message from client
     char data[1024];
     int num_read_bytes = read(sock, data, sizeof(data));
@@ -207,8 +211,11 @@ void client_service(Client &client){
         return;
     }
 
-    // Client thread
+    // Client thread main loop
     while (true) {
+        //------------------------------------
+        // MENU
+        //------------------------------------
 
         // Read message from client
         num_read_bytes = read(sock, data, sizeof(data));
@@ -281,6 +288,9 @@ void client_service(Client &client){
 
         // Game loop
         while (true){
+            //------------------------------------
+            // GAME
+            //------------------------------------
 
             // Read message from client
             num_read_bytes = read(sock, data, sizeof(data));
