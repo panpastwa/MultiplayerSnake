@@ -636,7 +636,7 @@ void update_game_state(int sock){
                 printf("You lost\n");
                 is_in_game = false;
                 board_mutex.lock();
-                write(sock, "L", 1024);
+                write(sock, "L", 1);
                 for (int i=0; i<N; ++i) {
                     for (int j = 0; j < M; ++j) {
                         board[i][j] = 0;
