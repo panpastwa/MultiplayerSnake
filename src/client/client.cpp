@@ -347,6 +347,7 @@ void queue(sf::RenderWindow &window, int sock){
                 is_disconnecting = true;
                 disconnecting_mutex.unlock();
 
+                // Disconnect
                 int error = shutdown(sock, SHUT_RDWR);
                 if (error == -1){
                     perror("Shutdown error");
@@ -354,6 +355,7 @@ void queue(sf::RenderWindow &window, int sock){
                 }
                 printf("Disconnected\n");
 
+                // Join thread
                 if (game_updater.joinable()){
                     game_updater.join();
                     printf("Thread successfully joined\n");
@@ -369,8 +371,12 @@ void queue(sf::RenderWindow &window, int sock){
             printf("Leaving queue\n");
             queue_position_mutex.unlock();
             return;
-        } else {
+        }
+        else if (queue_position >= '0' && queue_position <= '9' ) {
             position_number_text.setString(queue_position);
+        }
+        else {
+            position_number_text.setString('?');
         }
         queue_position_mutex.unlock();
 
@@ -467,6 +473,7 @@ void game(sf::RenderWindow &window, int sock){
                 is_disconnecting = true;
                 disconnecting_mutex.unlock();
 
+                // Disconnect
                 int error = shutdown(sock, SHUT_RDWR);
                 if (error == -1){
                     perror("Shutdown error");
@@ -474,6 +481,7 @@ void game(sf::RenderWindow &window, int sock){
                 }
                 printf("Disconnected\n");
 
+                // Join
                 if (game_updater.joinable()){
                     game_updater.join();
                     printf("Thread successfully joined\n");
@@ -558,7 +566,6 @@ void send_key_to_server(sf::Keyboard::Key key, int server_sock){
     int num_of_bytes = write(server_sock, msg, sizeof(msg));
     if (num_of_bytes == -1){
         perror("Send key to server error");
-        exit(-1);
     }
 }
 
@@ -642,7 +649,7 @@ void update_game_state(int sock){
 
             // Server sends update about queue position
             else if (data[num_of_bytes_processed] == 'Q'){
-                if (data[num_of_bytes_processed+1] >= '0' && data[num_of_bytes_processed+1] <= '9'){
+                if (data[num_of_bytes_processed+1] >= '0' && data[num_of_bytes_processed+1] <= '0'+12){
                     printf("Update queue position message from server\n");
                     queue_position = data[++num_of_bytes_processed];
                     num_of_bytes_processed++;
