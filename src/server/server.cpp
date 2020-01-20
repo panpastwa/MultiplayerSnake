@@ -407,7 +407,6 @@ void server_game_service(){
                         int num_of_bytes = write(sock, msg, 2);
                         if (num_of_bytes == -1){
                             perror("Write error");
-                            exit(-1);
                         }
                         if (num_of_bytes != 2){
                             printf("Wrong number of bytes send\n");
@@ -537,7 +536,6 @@ void server_game_service(){
                 int num_of_bytes = write(player.sock, "L", 1);
                 if (num_of_bytes == -1){
                     perror("Write error");
-                    exit(-1);
                 }
                 if (num_of_bytes != 1){
                     printf("Wrong number of bytes send\n");
@@ -640,7 +638,6 @@ void server_game_service(){
                 int num_of_bytes = write(player.sock, msg, index);
                 if (num_of_bytes == -1){
                     perror("Write error");
-                    exit(-1);
                 }
                 if (num_of_bytes != index){
                     printf("Wrong number of bytes send\n");
