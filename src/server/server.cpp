@@ -300,7 +300,7 @@ void client_service(Client &client){
             }
 
             // Clients replies to message about losing --> Client lost and backs to menu
-            else if (num_read_bytes > 1 && data[0] == 'L'){
+            else if (num_read_bytes == 1 && data[0] == 'L'){
                 printf("Client %d: Knows about lost game and is back in menu\n", sock);
                 break;
             }
