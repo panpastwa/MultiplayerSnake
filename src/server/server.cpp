@@ -113,7 +113,7 @@ void server(int port_num){
         // Remove inactive players
         for (Client &c : clients_to_be_joined_and_removed){
             list_of_clients.remove(c);
-            printf("Client %d: Successfully removed from client list\n", c.sock);
+            printf("Client %d: Successfuly disconnected from server\n", c.sock);
         }
 
         // Print client's ip address and port number
@@ -155,13 +155,9 @@ void disconnect_client(Client &client){
     client.is_active = false;
     num_of_connected_clients--;
     clients_mutex.unlock();
-    printf("Client %d: Successfuly disconnected from server\n", client.sock);
 
     // Notify thread accpeting new connections about client disconnection
     slot_for_client_available.notify_one();
-
-    // Finish client thread
-    printf("Client %d: End of thread\n", client.sock);
 }
 
 
@@ -177,19 +173,6 @@ void client_service(Client &client){
     char data[1024];
     int num_read_bytes = read(sock, data, sizeof(data));
 
-    // Handle possible error
-    if (num_read_bytes == -1){
-        perror("Read error in client's main loop");
-        disconnect_client(client);
-        return;
-    }
-
-    // Read 0 bytes - client disconnects
-    else if (num_read_bytes == 0){
-        disconnect_client(client);
-        return;
-    }
-
     // Client sends their nickname
     if (num_read_bytes > 0 && data[0] == 'N'){
         for (int i=0; i<16; i++){
@@ -204,9 +187,19 @@ void client_service(Client &client){
         printf("Client %d: New nickname: %s\n", sock, client.nickname);
     }
 
-    // Unknown message
     else {
-        printf("Client %d: Unknown action\n", sock);
+        // Error occured
+        if (num_read_bytes == -1) {
+            perror("Read error");
+        }
+        // Lost connection with client
+        else if (num_read_bytes == 0){
+            printf("Client %d: Lost connection with client\n", sock);
+        }
+        // Unknown message
+        else {
+            printf("Client %d: Unknown action\n", sock);
+        }
         disconnect_client(client);
         return;
     }
@@ -219,19 +212,6 @@ void client_service(Client &client){
 
         // Read message from client
         num_read_bytes = read(sock, data, sizeof(data));
-
-        // Handle possible error
-        if (num_read_bytes == -1){
-            perror("Read error in client's main loop");
-            disconnect_client(client);
-            return;
-        }
-
-        // Read 0 bytes - client disconnects
-        else if (num_read_bytes == 0){
-            disconnect_client(client);
-            return;
-        }
 
         // Client wants to join game
         if (num_read_bytes > 0 && data[0] == 'S'){
@@ -250,15 +230,13 @@ void client_service(Client &client){
 
             // Send information about inital position in game queue
             int num_of_bytes = write(sock, msg, 2);
-            if (num_of_bytes == -1){
-                perror("Write error");
-                queue.pop_back();
-                queue_mutex.unlock();
-                disconnect_client(client);
-                return;
-            }
             if (num_of_bytes != 2){
-                printf("Wrong number of bytes send\n");
+                if (num_of_bytes == -1) {
+                    perror("Write error");
+                }
+                else {
+                    printf("Wrong number of bytes send\n");
+                }
                 queue.pop_back();
                 queue_mutex.unlock();
                 disconnect_client(client);
@@ -279,9 +257,19 @@ void client_service(Client &client){
             continue;
         }
 
-        // Unknown first character
         else {
-            printf("Client %d: Unknown action\n", sock);
+            // Error occured
+            if (num_read_bytes == -1) {
+                perror("Read error");
+            }
+                // Lost connection with client
+            else if (num_read_bytes == 0){
+                printf("Client %d: Lost connection with client\n", sock);
+            }
+                // Unknown message
+            else {
+                printf("Client %d: Unknown action\n", sock);
+            }
             disconnect_client(client);
             return;
         }
@@ -294,63 +282,6 @@ void client_service(Client &client){
 
             // Read message from client
             num_read_bytes = read(sock, data, sizeof(data));
-
-            // Handle possible error
-            if (num_read_bytes == -1){
-                perror("Read error");
-
-                // Remove from queue
-                queue_mutex.lock();
-                queue.remove(sock);
-                queue_mutex.unlock();
-
-                // Delete from game players list
-                current_players_mutex.lock();
-                for (Player &p : current_players){
-                    if (sock == p.sock){
-
-                        // Add loser's slot number to available player numbers
-                        available_player_numbers.push(p.number);
-
-                        // Remove loser and decrease num_of_players_in_game
-                        current_players.remove(p);
-                        num_of_players_in_game--;
-                        break;
-                    }
-                }
-                current_players_mutex.unlock();
-
-                disconnect_client(client);
-                return;
-            }
-
-            // Read 0 bytes - client disconnects
-            else if (num_read_bytes == 0){
-
-                // Remove from queue
-                queue_mutex.lock();
-                queue.remove(sock);
-                queue_mutex.unlock();
-
-                // Delete from game players list
-                current_players_mutex.lock();
-                for (Player &p : current_players){
-                    if (sock == p.sock){
-
-                        // Add loser's slot number to available player numbers
-                        available_player_numbers.push(p.number);
-
-                        // Remove loser and decrease num_of_players_in_game
-                        current_players.remove(p);
-                        num_of_players_in_game--;
-                        break;
-                    }
-                }
-                current_players_mutex.unlock();
-
-                disconnect_client(client);
-                return;
-            }
 
             // Client sends new direction to server
             if (num_read_bytes > 1 && data[0] == 'K' && data[1] >= 0 && data[1] < 4){
@@ -374,9 +305,19 @@ void client_service(Client &client){
                 break;
             }
 
-            // Unknown first character
             else {
-                printf("Client %d: Unknown action\n", sock);
+                // Error occured
+                if (num_read_bytes == -1) {
+                    perror("Read error");
+                }
+                // Lost connection with client
+                else if (num_read_bytes == 0){
+                    printf("Client %d: Lost connection with client\n", sock);
+                }
+                // Unknown message
+                else {
+                    printf("Client %d: Unknown action\n", sock);
+                }
 
                 // Remove from queue
                 queue_mutex.lock();
@@ -730,7 +671,7 @@ void server_game_service(){
         // Unlock players_mutex
         current_players_mutex.unlock();
 
-        usleep(9300000);
+        usleep(300000);
     }
 
 }
