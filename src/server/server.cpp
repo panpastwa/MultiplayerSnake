@@ -667,8 +667,6 @@ void server_game_service(){
 
         // Unlock players_mutex
         current_players_mutex.unlock();
-
         usleep(300000);
     }
-
 }
