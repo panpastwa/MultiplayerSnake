@@ -1,4 +1,4 @@
-# MultiplayerSnake
+# MultiplayerSnake :snake:
 
 #### What is it?
 Classic snake game for up to 4 players using client-server communication.
